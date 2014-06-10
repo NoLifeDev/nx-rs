@@ -51,15 +51,15 @@ impl File {
         use libc::consts::os::posix88::{O_RDONLY, PROT_READ, MAP_SHARED};
         use libc::types::os::arch::posix01::stat;
         unsafe {
-            let name = name.to_c_str();
-            let handle = open(name.as_bytes().as_ptr(), O_RDONLY);
+            let name = path.to_c_str();
+            let handle = open(name.unwrap(), O_RDONLY, 0);
             if (handle == -1) { return None; }
-            let finfo: stat;
-            if (fstat(handle, &finfo) == -1) { return None; }
+            let mut finfo = std::mem::uninitialized::<stat>();
+            if (fstat(handle, &mut finfo) == -1) { return None; }
             let size = finfo.st_size;
             let data =
-                mmap(ptr::null(), size, PROT_READ, MAP_SHARED, handle, 0);
-            if (data == -1) { return None; }
+                mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, handle,
+                     0);
             let header: *Header = transmute(data);
             if (*header).magic != 0x34474B50 { return None; }
             let file =
