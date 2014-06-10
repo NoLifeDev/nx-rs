@@ -50,11 +50,12 @@ impl File {
         use libc::funcs::posix88::mman::mmap;
         use libc::consts::os::posix88::{O_RDONLY, PROT_READ, MAP_SHARED};
         use libc::types::os::arch::posix01::stat;
+        use std::mem::uninitialized;
         unsafe {
             let name = path.to_c_str();
             let handle = open(name.unwrap(), O_RDONLY, 0);
             if (handle == -1) { return None; }
-            let mut finfo = std::mem::uninitialized::<stat>();
+            let mut finfo = uninitialized::<stat>();
             if (fstat(handle, &mut finfo) == -1) { return None; }
             let size = finfo.st_size;
             let data =
