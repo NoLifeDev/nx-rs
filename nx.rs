@@ -10,8 +10,8 @@ struct File {
     stringtable: *u64,
 }
 impl File {
-    #[cfg(target_os = "win32")]
-    fn open(name: &Path) -> Option<File> {
+    #[cfg(windows)]
+    fn open(path: &Path) -> Option<File> {
         use libc::funcs::extra::kernel32::{CreateFileW, CreateFileMappingW,
                                            MapViewOfFile};
         use libc::consts::os::extra::{GENERIC_READ, FILE_SHARE_READ,
@@ -20,9 +20,10 @@ impl File {
                                       FILE_MAP_READ};
         use libc::types::os::arch::extra::LPSECURITY_ATTRIBUTES;
         unsafe {
-            let sname = name.as_str().unwrap().to_utf16();
+            let mut name = path.as_str().unwrap().to_utf16();
+            name.push(0);
             let handle =
-                CreateFileW(sname.as_ptr(), GENERIC_READ, FILE_SHARE_READ,
+                CreateFileW(name.as_ptr(), GENERIC_READ, FILE_SHARE_READ,
                             ptr::mut_null(), OPEN_EXISTING,
                             FILE_FLAG_RANDOM_ACCESS, ptr::mut_null());
             if handle == transmute(INVALID_HANDLE_VALUE) { return None; }
@@ -45,10 +46,34 @@ impl File {
             Some(file)
         }
     }
-    #[cfg(target_os = "linux")]
-    fn open(name: &Path) -> Option<File> {
+    #[cfg(unix)]
+    fn open(path: &Path) -> Option<File> {
+        use libc::funcs::posix88::fcntl::open;
+        use libc::funcs::posix88::stat_::fstat;
+        use libc::funcs::posix88::mman::mmap;
+        use libc::consts::os::posix88::{O_RDONLY, PROT_READ, MAP_SHARED};
+        use libc::types::os::arch::posix01::stat;
         unsafe {
-            //Someone fill this in please
+            let name = name.to_c_str();
+            let handle = open(name.as_bytes().as_ptr(), O_RDONLY);
+            if (handle == -1) { return None; }
+            let finfo: stat;
+            if (fstat(handle, &finfo) == -1) { return None; }
+            let size = finfo.st_size;
+            let data =
+                mmap(ptr::null(), size, PROT_READ, MAP_SHARED, handle, 0);
+            if (data == -1) { return None; }
+            let header: *Header = transmute(data);
+            if (*header).magic != 0x34474B50 { return None; }
+            let file =
+                File{data: transmute(data),
+                     header: header,
+                     nodetable:
+                         transmute(data.offset((*header).nodeoffset as int)),
+                     stringtable:
+                         transmute(data.offset((*header).stringoffset as
+                                                   int)),};
+            Some(file)
         }
     }
     fn get_header(&self) -> &Header { unsafe { transmute(self.header) } }
