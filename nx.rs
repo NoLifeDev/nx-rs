@@ -1,6 +1,6 @@
 
 use std::{ptr};
-use std::mem::{transmute};
+use std::mem::{transmute, uninitialized};
 pub struct File {
     data: *u8,
     header: *Header,
