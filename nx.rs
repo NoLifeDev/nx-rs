@@ -2,35 +2,7 @@ extern crate libc;
 extern crate time;
 use std::{ptr};
 use std::mem::{transmute};
-#[cfg(target_os = "win32")]
-mod win {
-    pub struct Handle;
-    pub struct SecurityAttributes;
-    extern "system" {
-        pub fn CreateFileW(filename: *u16, access: u32, share: u32,
-                           security: *SecurityAttributes, creation: u32,
-                           flags: u32, template: *Handle) -> *Handle;
-        pub fn CreateFileMappingW(file: *Handle,
-                                  security: *SecurityAttributes, protect: u32,
-                                  sizehigh: u32, sizelow: u32, name: *u16) ->
-         *Handle;
-        pub fn MapViewOfFile(map: *Handle, access: u32, offsethigh: u32,
-                             offsetlow: u32, size: uint) -> *u8;
-        pub fn GetLastError() -> u32;
-    }
-    pub static GENERIC_READ: u32 = 0x80000000;
-    pub static FILE_SHARE_READ: u32 = 0x00000001;
-    pub static OPEN_EXISTING: u32 = 3;
-    pub static FILE_FLAG_RANDOM_ACCESS: u32 = 0x10000000;
-    pub static PAGE_READONLY: u32 = 0x02;
-    pub static SECTION_MAP_READ: u32 = 0x0004;
-    pub static FILE_MAP_READ: u32 = SECTION_MAP_READ;
-    pub static INVALID_HANDLE_VALUE: uint = -1;
-}
-#[cfg(target_os = "linux")]
-mod posix {
-    //Hi
-}
+
 struct File {
     data: *u8,
     header: *Header,
@@ -40,25 +12,30 @@ struct File {
 impl File {
     #[cfg(target_os = "win32")]
     fn open(name: &Path) -> Option<File> {
+        use libc::funcs::extra::kernel32::{CreateFileW, CreateFileMappingW,
+                                           MapViewOfFile};
+        use libc::consts::os::extra::{GENERIC_READ, FILE_SHARE_READ,
+                                      OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS,
+                                      INVALID_HANDLE_VALUE, PAGE_READONLY,
+                                      FILE_MAP_READ};
+        use libc::types::os::arch::extra::LPSECURITY_ATTRIBUTES;
         unsafe {
             let sname = name.as_str().unwrap().to_utf16();
             let handle =
-                win::CreateFileW(sname.as_ptr(), win::GENERIC_READ,
-                                 win::FILE_SHARE_READ, ptr::null(),
-                                 win::OPEN_EXISTING,
-                                 win::FILE_FLAG_RANDOM_ACCESS, ptr::null());
-            if handle.to_uint() == win::INVALID_HANDLE_VALUE { return None; }
+                CreateFileW(sname.as_ptr(), GENERIC_READ, FILE_SHARE_READ,
+                            ptr::mut_null(), OPEN_EXISTING,
+                            FILE_FLAG_RANDOM_ACCESS, ptr::mut_null());
+            if handle == transmute(INVALID_HANDLE_VALUE) { return None; }
             let map =
-                win::CreateFileMappingW(handle, ptr::null(),
-                                        win::PAGE_READONLY, 0, 0,
-                                        ptr::null());
+                CreateFileMappingW(handle, ptr::mut_null(), PAGE_READONLY, 0,
+                                   0, ptr::null());
             if map.is_null() { return None; }
-            let data = win::MapViewOfFile(map, win::FILE_MAP_READ, 0, 0, 0);
+            let data = MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0);
             if data.is_null() { return None; }
             let header: *Header = transmute(data);
             if (*header).magic != 0x34474B50 { return None; }
             let file =
-                File{data: data,
+                File{data: transmute(data),
                      header: header,
                      nodetable:
                          transmute(data.offset((*header).nodeoffset as int)),
