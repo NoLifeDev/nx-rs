@@ -1,6 +1,3 @@
-
-use std::{ptr};
-use std::mem::{transmute};
 pub struct File {
     data: *u8,
     header: *Header,
@@ -16,6 +13,8 @@ impl File {
                                       OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS,
                                       INVALID_HANDLE_VALUE, PAGE_READONLY,
                                       FILE_MAP_READ};
+        use std::ptr;
+        use std::mem::transmute;
         unsafe {
             let mut name = path.as_str().unwrap().to_utf16();
             name.push(0);
@@ -50,7 +49,8 @@ impl File {
         use libc::funcs::posix88::mman::mmap;
         use libc::consts::os::posix88::{O_RDONLY, PROT_READ, MAP_SHARED};
         use libc::types::os::arch::posix01::stat;
-        use std::mem::uninitialized;
+        use std::mem::{uninitialized, transmute};
+        use std::ptr;
         unsafe {
             let name = path.to_c_str();
             let handle = open(name.unwrap(), O_RDONLY, 0);
@@ -74,13 +74,18 @@ impl File {
             Some(file)
         }
     }
-    fn get_header(&self) -> &Header { unsafe { transmute(self.header) } }
+    fn get_header(&self) -> &Header {
+        use std::mem::transmute;
+        unsafe { transmute(self.header) }
+    }
     pub fn root<'a>(&'a self) -> Node<'a> {
         unsafe { Node{data: &*self.nodetable, file: self,} }
     }
     fn get_str<'a>(&'a self, index: u32) -> Option<&'a str> {
         use std::str;
         use std::slice::raw;
+        use std::ptr;
+        use std::mem::transmute;
         unsafe {
             let off = *self.stringtable.offset(index as int);
             let ptr = self.data.offset(off as int);
