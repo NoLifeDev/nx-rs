@@ -1,9 +1,7 @@
-extern crate libc;
-extern crate time;
+
 use std::{ptr};
 use std::mem::{transmute};
-
-struct File {
+pub struct File {
     data: *u8,
     header: *Header,
     nodetable: *NodeData,
@@ -11,14 +9,13 @@ struct File {
 }
 impl File {
     #[cfg(windows)]
-    fn open(path: &Path) -> Option<File> {
+    pub fn open(path: &Path) -> Option<File> {
         use libc::funcs::extra::kernel32::{CreateFileW, CreateFileMappingW,
                                            MapViewOfFile};
         use libc::consts::os::extra::{GENERIC_READ, FILE_SHARE_READ,
                                       OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS,
                                       INVALID_HANDLE_VALUE, PAGE_READONLY,
                                       FILE_MAP_READ};
-        use libc::types::os::arch::extra::LPSECURITY_ATTRIBUTES;
         unsafe {
             let mut name = path.as_str().unwrap().to_utf16();
             name.push(0);
@@ -47,7 +44,7 @@ impl File {
         }
     }
     #[cfg(unix)]
-    fn open(path: &Path) -> Option<File> {
+    pub fn open(path: &Path) -> Option<File> {
         use libc::funcs::posix88::fcntl::open;
         use libc::funcs::posix88::stat_::fstat;
         use libc::funcs::posix88::mman::mmap;
@@ -77,19 +74,19 @@ impl File {
         }
     }
     fn get_header(&self) -> &Header { unsafe { transmute(self.header) } }
-    fn root<'a>(&'a self) -> Node<'a> {
+    pub fn root<'a>(&'a self) -> Node<'a> {
         unsafe { Node{data: &*self.nodetable, file: self,} }
     }
     fn get_str<'a>(&'a self, index: u32) -> Option<&'a str> {
+        use std::str;
+        use std::slice::raw;
         unsafe {
             let off = *self.stringtable.offset(index as int);
             let ptr = self.data.offset(off as int);
             let size: *u16 = transmute(ptr);
             let func = |buf: &[u8]| -> Option<&'a str> {
-                let bytes: &'a [u8] = transmute(buf);
-                std::str::from_utf8(bytes) };
-            std::slice::raw::buf_as_slice(ptr.offset(2), (*size) as uint,
-                                          func)
+                let bytes: &'a [u8] = transmute(buf); str::from_utf8(bytes) };
+            raw::buf_as_slice(ptr.offset(2), (*size) as uint, func)
         }
     }
 }
@@ -109,19 +106,21 @@ struct Header {
 struct String {
     length: u16,
 }
-struct Node<'a> {
+pub struct Node<'a> {
     data: &'a NodeData,
     file: &'a File,
 }
 impl <'a> Node<'a> {
-    fn iter(&self) -> NodeIterator<'a> {
+    pub fn iter(&self) -> NodeIterator<'a> {
         unsafe {
             let data = self.file.nodetable.offset(self.data.children as int);
             NodeIterator{data: data, count: self.data.count, file: self.file,}
         }
     }
-    fn name(&self) -> Option<&'a str> { self.file.get_str(self.data.name) }
-    fn empty(&self) -> bool { self.data.count == 0 }
+    pub fn name(&self) -> Option<&'a str> {
+        self.file.get_str(self.data.name)
+    }
+    pub fn empty(&self) -> bool { self.data.count == 0 }
 }
 struct NodeIterator<'a> {
     data: *NodeData,
@@ -179,18 +178,4 @@ struct NodeBitmap {
 struct NodeAudio {
     index: u32,
     length: u32,
-}
-fn recurse(node: Node) -> int { node.iter().fold(1, |a, b| a + recurse(b)) }
-fn test(name: &str, func: |Node| -> int, node: Node) {
-    for i in range(0, 10) {
-        let begin = time::precise_time_ns();
-        let answer = recurse(node);
-        let end = time::precise_time_ns();
-        println!("{}\t{}\t{}" , name , ( end - begin ) / 1000 , answer);
-    }
-}
-fn main() {
-    unsafe { ::std::rt::stack::record_sp_limit(0); }
-    let file = File::open(&Path::new("Data.nx")).unwrap();
-    test("Re", recurse, file.root());
 }
