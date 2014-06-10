@@ -1,6 +1,6 @@
 
 use std::{ptr};
-use std::mem::{transmute};
+use std::mem::{transmute, uninitialized};
 pub struct File {
     data: *u8,
     header: *Header,
@@ -54,7 +54,7 @@ impl File {
             let name = path.to_c_str();
             let handle = open(name.unwrap(), O_RDONLY, 0);
             if (handle == -1) { return None; }
-            let mut finfo = std::mem::uninitialized::<stat>();
+            let mut finfo = uninitialized::<stat>();
             if (fstat(handle, &mut finfo) == -1) { return None; }
             let size = finfo.st_size;
             let data =
