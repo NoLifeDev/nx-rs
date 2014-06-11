@@ -90,9 +90,9 @@ impl File {
             let off = *self.stringtable.offset(index as int);
             let ptr = self.data.offset(off as int);
             let size: *u16 = transmute(ptr);
-            let func = |buf: &[u8]| -> Option<&'a str> {
-                let bytes: &'a [u8] = transmute(buf); str::from_utf8(bytes) };
-            raw::buf_as_slice(ptr.offset(2), (*size) as uint, func)
+            raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
+                              let bytes: &'a [u8] = transmute(buf);
+                              str::from_utf8(bytes) })
         }
     }
 }
