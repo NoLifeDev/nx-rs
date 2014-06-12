@@ -2,6 +2,9 @@ extern crate libc;
 extern crate time;
 #[allow(dead_code)]
 mod nx;
+fn load() -> nx::File {
+    nx::File::open(&Path::new("Data.nx")).unwrap()
+}
 fn recurse(node: nx::Node) -> uint {
     node.iter().fold(1, |a, b| a + recurse(b))
 }
@@ -25,9 +28,7 @@ fn main() {
     let file = nx::File::open(&Path::new("Data.nx")).unwrap();
     let node = file.root();
     println!("Name\t75%%t\tM50%%\tBest\tAnswer");
-    test("Ld", 0x1000, || {
-        nx::File::open(&Path::new("Data.nx")).unwrap().header().nodecount as uint
-    });
+    test("Ld", 0x1000, || load().header().nodecount as uint);
     test("Re", 0x100, || recurse(node));
-    test("LR", 0x100, || recurse(nx::File::open(&Path::new("Data.nx")).unwrap().root()));
+    test("LR", 0x100, || recurse(load().root()));
 }

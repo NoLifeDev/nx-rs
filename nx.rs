@@ -76,12 +76,12 @@ mod mmap {
         }
     }
     struct Mapping {
-        data: *mut c_void,
+        data: *c_void,
         size: u64,
     }
     impl Drop for Mapping {
         fn drop(&mut self) {
-            assert_eq!(unsafe { munmap(self.data as *c_void, self.size) }, 0);
+            assert_eq!(unsafe { munmap(self.data, self.size) }, 0);
         }
     }
     pub struct MapFile {
@@ -89,7 +89,7 @@ mod mmap {
         file: Handle,
     }
     impl MapFile {
-        pub fn data(&self) -> * c_void { self.map.data as *_ }
+        pub fn data(&self) -> * c_void { self.map.data }
     }
     fn open_file(path: &Path) -> Result<Handle, &'static str> {
         let name = path.to_c_str();
@@ -110,7 +110,7 @@ mod mmap {
             mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, file.hand, 0)
         };
         if map.to_uint() == -1 { return Err("Failed to map file"); }
-        Ok(Mapping{data: map, size: size})
+        Ok(Mapping{data: map as *_, size: size})
     }
     pub fn open(path: &Path) -> Result<MapFile, &'static str> {
         let file = try!(open_file(path));
