@@ -82,7 +82,7 @@ mod mmap {
     }
     impl Drop for Mapping {
         fn drop(&mut self) {
-            assert_eq!(unsafe { munmap(self.data, self.size) }, 0);
+            assert_eq!(unsafe { munmap(self.data as *c_void, self.size) }, 0);
         }
     }
     struct MapFile {
@@ -110,7 +110,7 @@ mod mmap {
     pub fn open(path: &Path) -> Result<MapFile, &'static str> {
         let file = try!(open_file(path));
         let size = try!(file_size(path));
-        let map = try!(map_file(file, size));
+        let map = try!(map_file(&file, size));
         Ok(MapFile{file: file, map: map})
     }
 }
