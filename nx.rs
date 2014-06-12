@@ -134,7 +134,7 @@ impl File {
                     stringtable: transmute(data.offset((*header).stringoffset as int))})
         }
     }
-    fn header(&self) -> &Header {
+    pub fn header(&self) -> &Header {
         use std::mem::transmute;
         unsafe { transmute(self.header) }
     }
@@ -159,7 +159,7 @@ impl File {
 #[packed]
 struct Header {
     magic: u32,
-    nodecount: u32,
+    pub nodecount: u32,
     nodeoffset: u64,
     stringcount: u32,
     stringoffset: u64,
