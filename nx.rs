@@ -94,7 +94,9 @@ mod mmap {
     }
     fn open_file(path: &Path) -> Result<Handle, &'static str> {
         let name = path.to_c_str();
-        let handle = posix_open(name.unwrap(), O_RDONLY, 0);
+        let handle = unsafe {
+             posix_open(name.unwrap(), O_RDONLY, 0)
+        };
         if (handle == -1) { return Err("Failed to open file") }
         Ok(Handle{hand: handle})
     }
@@ -105,7 +107,9 @@ mod mmap {
         }
     }
     fn map_file(file: &Handle, size: u64) -> Result<Mapping, &'static str> {
-        let map = mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, file.hand, 0);
+        let map = unsafe {
+            mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, file.hand, 0)
+        };
         if map.to_uint() == -1 { return Err("Failed to map file"); }
         Ok(Mapping{data: map, size: size})
     }
