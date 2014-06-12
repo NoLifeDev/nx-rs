@@ -32,9 +32,9 @@ fn main() {
     unsafe { ::std::rt::stack::record_sp_limit(0); }
     let file = nx::File::open(&Path::new("Data.nx")).unwrap();
     let node = file.root();
-    println!("Name\t75%%t\tM50%%\tBest\tAnswer");
-    //test("Ld", 0x1000, || load().header().nodecount as uint);
-    //test("Re", 0x100, || recurse(node));
-    //test("LR", 0x100, || recurse(load().root()));
+    println!("Name\t75%t\tM50%\tBest\tAnswer");
+    test("Ld", 0x1000, || load().header().nodecount as uint);
+    test("Re", 0x20, || recurse(node));
+    test("LR", 0x20, || recurse(load().root()));
     test("SA", 0x20, || str_recurse(node));
 }

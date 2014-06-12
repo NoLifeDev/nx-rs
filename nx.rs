@@ -149,7 +149,6 @@ impl File {
         unsafe { Node{data: &*self.nodetable, file: self,} }
     }
     fn get_str<'a>(&'a self, index: u32) -> &'a str {
-        use std::str;
         use std::slice::raw;
         use std::mem::transmute;
         unsafe {
@@ -201,15 +200,13 @@ impl <'a> Node<'a> {
                 let half = count / 2;
                 let temp = data.offset(half as int);
                 let other = self.file.get_str((*temp).name);
-                if other < name {
-                    data = temp.offset(1);
-                    count -= half + 1;
-                } else {
-                    count = half;
+                match other.cmp(&name) {
+                    Less => { data = temp.offset(1); count -= half + 1; },
+                    Equal => return Some(Node{data: &*temp, file: self.file}),
+                    Greater => count = half,
                 }
             }
-            if name != self.file.get_str((*data).name) { return None; }
-            Some(Node{data: &*data, file: self.file})
+            None
         }
     }
 }
