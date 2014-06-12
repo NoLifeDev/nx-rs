@@ -158,7 +158,7 @@ impl File {
             let size: *u16 = transmute(ptr);
             raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
                 let bytes: &'a [u8] = transmute(buf);
-                str::raw::from_utf8(bytes)
+                transmute(bytes)
             })
         }
     }
