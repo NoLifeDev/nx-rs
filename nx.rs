@@ -85,7 +85,7 @@ mod mmap {
             assert_eq!(unsafe { munmap(self.data as *c_void, self.size) }, 0);
         }
     }
-    struct MapFile {
+    pub struct MapFile {
         map: Mapping,
         file: Handle,
     }
