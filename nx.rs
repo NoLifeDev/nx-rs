@@ -62,7 +62,9 @@ mod mmap {
 }
 #[cfg(unix)]
 mod mmap {
-    use libc::{open, close, fstat, mmap, O_RDONLY, PROT_READ, MAP_SHARED, stat, c_int};
+    use libc::{close, fstat, mmap, munmap, O_RDONLY, PROT_READ, stat, c_int, c_void};
+    use libc::consts::os::posix88::{MAP_SHARED};
+    use posix_open = libc::open;
     use std::mem::{uninitialized, transmute};
     use std::ptr;
     use std::io::fs::stat;
@@ -92,7 +94,7 @@ mod mmap {
     }
     fn open_file(path: &Path) -> Result<Handle, &'static str> {
         let name = path.to_c_str();
-        let handle = open(name.unwrap(), O_RDONLY, 0);
+        let handle = posix_open(name.unwrap(), O_RDONLY, 0);
         if (handle == -1) { return Err("Failed to open file") }
         Ok(Handle{hand: handle})
     }
