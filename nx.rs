@@ -99,8 +99,10 @@ mod mmap {
         Ok(Handle{hand: handle})
     }
     fn file_size(path: &Path) -> Result<u64, &'static str> {
-        let stat = try!(path.stat());
-        Ok(stat.size);
+        match path.stat() {
+            Ok(stat) => Ok(stat.size),
+            Err(_) => Err("Failed to get file size")
+        }
     }
     fn map_file(file: &Handle, size: u64) -> Result<Mapping, &'static str> {
         let map = mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, file.hand, 0);
