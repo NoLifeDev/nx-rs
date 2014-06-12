@@ -1,4 +1,4 @@
-
+use std::fmt;
 
 #[cfg(windows)]
 mod mmap {
@@ -148,7 +148,7 @@ impl File {
     pub fn root<'a>(&'a self) -> Node<'a> {
         unsafe { Node{data: &*self.nodetable, file: self,} }
     }
-    fn get_str<'a>(&'a self, index: u32) -> Option<&'a str> {
+    fn get_str<'a>(&'a self, index: u32) -> &'a str {
         use std::str;
         use std::slice::raw;
         use std::mem::transmute;
@@ -158,7 +158,7 @@ impl File {
             let size: *u16 = transmute(ptr);
             raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
                 let bytes: &'a [u8] = transmute(buf);
-                str::from_utf8(bytes)
+                str::raw::from_utf8(bytes)
             })
         }
     }
@@ -190,8 +190,36 @@ impl <'a> Node<'a> {
             NodeIterator{data: data, count: self.data.count, file: self.file,}
         }
     }
-    pub fn name(&self) -> Option<&'a str> { self.file.get_str(self.data.name) }
+    pub fn name(&self) -> &'a str { self.file.get_str(self.data.name) }
     pub fn empty(&self) -> bool { self.data.count == 0 }
+    pub fn get(&self, name: &'a str) -> Option<Node<'a>> {
+        if self.empty() { return None; }
+        unsafe {
+            let mut data = self.file.nodetable.offset(self.data.children as int);
+            let mut count = self.data.count;
+            while count > 0 {
+                let half = count / 2;
+                let temp = data.offset(half as int);
+                let other = self.file.get_str((*temp).name);
+                if other < name {
+                    data = temp.offset(1);
+                    count -= half + 1;
+                } else {
+                    count = half;
+                }
+            }
+            if name != self.file.get_str((*data).name) { return None; }
+            Some(Node{data: &*data, file: self.file})
+        }
+    }
+}
+impl <'a> PartialEq for Node<'a> {
+    fn eq(&self, other: &Node) -> bool { self.data as *_ == other.data as *_ }
+}
+impl <'a> fmt::Show for Node<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
 }
 struct NodeIterator<'a> {
     data: *NodeData,
@@ -204,7 +232,7 @@ impl <'a> Iterator<Node<'a>> for NodeIterator<'a> {
             0 => None,
             _ => {
                 self.count -= 1;
-                let node = Node{data: unsafe { &*self.data }, file: self.file,};
+                let node = Node{data: unsafe { &*self.data }, file: self.file};
                 self.data = unsafe { self.data.offset(1) };
                 Some(node)
             }

@@ -8,6 +8,11 @@ fn load() -> nx::File {
 fn recurse(node: nx::Node) -> uint {
     node.iter().fold(1, |a, b| a + recurse(b))
 }
+fn str_recurse(node: nx::Node) -> uint {
+    node.iter().fold(1, |a, b| {
+        a + if node.get(b.name()).unwrap() == b { str_recurse(b) } else { 0 }
+    })
+}
 fn test(name: &str, count: uint, func: || -> uint) {
     let mut answer = 0;
     let mut vec = Vec::from_fn(count, |_| {
@@ -28,7 +33,8 @@ fn main() {
     let file = nx::File::open(&Path::new("Data.nx")).unwrap();
     let node = file.root();
     println!("Name\t75%%t\tM50%%\tBest\tAnswer");
-    test("Ld", 0x1000, || load().header().nodecount as uint);
-    test("Re", 0x100, || recurse(node));
-    test("LR", 0x100, || recurse(load().root()));
+    //test("Ld", 0x1000, || load().header().nodecount as uint);
+    //test("Re", 0x100, || recurse(node));
+    //test("LR", 0x100, || recurse(load().root()));
+    test("SA", 0x20, || str_recurse(node));
 }
