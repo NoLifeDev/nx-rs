@@ -62,8 +62,9 @@ mod mmap {
 }
 #[cfg(unix)]
 mod mmap {
-    use libc::{open, close, fstat, mmap, O_RDONLY, PROT_READ, MAP_SHARED, stat, c_int};
-    use std::mem::{uninitialized, transmute};
+    use libc::{close, mmap, munmap, O_RDONLY, PROT_READ, c_int, c_void};
+    use libc::consts::os::posix88::{MAP_SHARED};
+    use posix_open = libc::open;
     use std::ptr;
     use std::io::fs::stat;
     struct Handle {
@@ -80,10 +81,10 @@ mod mmap {
     }
     impl Drop for Mapping {
         fn drop(&mut self) {
-            assert_eq!(unsafe { munmap(self.data, self.size) }, 0);
+            assert_eq!(unsafe { munmap(self.data as *c_void, self.size) }, 0);
         }
     }
-    struct MapFile {
+    pub struct MapFile {
         map: Mapping,
         file: Handle,
     }
@@ -92,23 +93,29 @@ mod mmap {
     }
     fn open_file(path: &Path) -> Result<Handle, &'static str> {
         let name = path.to_c_str();
-        let handle = open(name.unwrap(), O_RDONLY, 0);
-        if (handle == -1) { return Err("Failed to open file") }
+        let handle = unsafe {
+             posix_open(name.unwrap(), O_RDONLY, 0)
+        };
+        if handle == -1 { return Err("Failed to open file") }
         Ok(Handle{hand: handle})
     }
     fn file_size(path: &Path) -> Result<u64, &'static str> {
-        let stat = try!(path.stat());
-        Ok(stat.size);
+        match path.stat() {
+            Ok(stat) => Ok(stat.size),
+            Err(_) => Err("Failed to get file size")
+        }
     }
     fn map_file(file: &Handle, size: u64) -> Result<Mapping, &'static str> {
-        let map = mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, file.hand, 0);
+        let map = unsafe {
+            mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, file.hand, 0)
+        };
         if map.to_uint() == -1 { return Err("Failed to map file"); }
         Ok(Mapping{data: map, size: size})
     }
     pub fn open(path: &Path) -> Result<MapFile, &'static str> {
         let file = try!(open_file(path));
         let size = try!(file_size(path));
-        let map = try!(map_file(file, size));
+        let map = try!(map_file(&file, size));
         Ok(MapFile{file: file, map: map})
     }
 }
