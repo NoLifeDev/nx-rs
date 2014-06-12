@@ -1,5 +1,6 @@
 extern crate libc;
 extern crate time;
+#[allow(dead_code)]
 mod nx;
 fn recurse(node: nx::Node) -> int {
     node.iter().fold(1, |a, b| a + recurse(b))

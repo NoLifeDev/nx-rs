@@ -1,80 +1,140 @@
+
+
+#[cfg(windows)]
+mod mmap {
+    use libc::{CreateFileW, CreateFileMappingW, MapViewOfFile, CloseHandle, UnmapViewOfFile,
+               GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, INVALID_HANDLE_VALUE, PAGE_READONLY,
+               FILE_MAP_READ, HANDLE, TRUE};
+    use libc::consts::os::extra::{FILE_FLAG_RANDOM_ACCESS};
+    use libc::types::os::arch::extra::{LPCVOID};
+    use std::ptr;
+    struct Handle {
+        hand: HANDLE,
+    }
+    impl Drop for Handle {
+        fn drop(&mut self) {
+            assert_eq!(unsafe { CloseHandle(self.hand) }, TRUE);
+        }
+    }
+    struct MapView {
+        data: LPCVOID,
+    }
+    impl Drop for MapView {
+        fn drop(&mut self) {
+            assert_eq!(unsafe { UnmapViewOfFile(self.data) }, TRUE);
+        }
+    }
+    pub struct MapFile {
+        view: MapView,
+        map: Handle,
+        file: Handle,
+    }
+    impl MapFile {
+        pub fn data(&self) -> LPCVOID { self.view.data }
+    }
+    fn create_file(path: &Path) -> Result<Handle, &'static str> {
+        let name = path.as_str().unwrap().to_utf16().append([0]);
+        let file = unsafe {
+            CreateFileW(name.as_ptr(), GENERIC_READ, FILE_SHARE_READ, ptr::mut_null(),
+                        OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, ptr::mut_null())
+        };
+        if file.to_uint() == INVALID_HANDLE_VALUE as uint { return Err("Failed to open file"); }
+        Ok(Handle{hand: file})
+    }
+    fn create_mapping(file: &Handle) -> Result<Handle, &'static str> {
+        let map = unsafe {
+            CreateFileMappingW(file.hand, ptr::mut_null(), PAGE_READONLY, 0, 0, ptr::null())
+        };
+        if map.is_null() { return Err("Failed to create file mapping"); }
+        Ok(Handle{hand: map})
+    }
+    fn map_view(map: &Handle) -> Result<MapView, &'static str> {
+        let view = unsafe { MapViewOfFile(map.hand, FILE_MAP_READ, 0, 0, 0) };
+        if view.is_null() { return Err("Failed to map view of file"); }
+        Ok(MapView{data: view as *_})
+    }
+    pub fn open(path: &Path) -> Result<MapFile, &'static str> {
+        let file = try!(create_file(path));
+        let map = try!(create_mapping(&file));
+        let view = try!(map_view(&map));
+        Ok(MapFile{file: file, map: map, view: view})
+    }
+}
+#[cfg(unix)]
+mod mmap {
+    use libc::{open, close, fstat, mmap, O_RDONLY, PROT_READ, MAP_SHARED, stat, c_int};
+    use std::mem::{uninitialized, transmute};
+    use std::ptr;
+    use std::io::fs::stat;
+    struct Handle {
+        hand: c_int,
+    }
+    impl Drop for Handle {
+        fn drop(&mut self) {
+            assert_eq!(unsafe { close(self.hand) }, 0);
+        }
+    }
+    struct Mapping {
+        data: *mut c_void,
+        size: u64,
+    }
+    impl Drop for Mapping {
+        fn drop(&mut self) {
+            assert_eq!(unsafe { munmap(self.data, self.size) }, 0);
+        }
+    }
+    struct MapFile {
+        map: Mapping,
+        file: Handle,
+    }
+    impl MapFile {
+        pub fn data(&self) -> * c_void { self.map.data as *_ }
+    }
+    fn open_file(path: &Path) -> Result<Handle, &'static str> {
+        let name = path.to_c_str();
+        let handle = open(name.unwrap(), O_RDONLY, 0);
+        if (handle == -1) { return Err("Failed to open file") }
+        Ok(Handle{hand: handle})
+    }
+    fn file_size(path: &Path) -> Result<u64, &'static str> {
+        let stat = try!(path.stat());
+        Ok(stat.size);
+    }
+    fn map_file(file: &Handle, size: u64) -> Result<Mapping, &'static str> {
+        let map = mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, file.hand, 0);
+        if map.to_uint() == -1 { return Err("Failed to map file"); }
+        Ok(Mapping{data: map, size: size})
+    }
+    pub fn open(path: &Path) -> Result<MapFile, &'static str> {
+        let file = try!(open_file(path));
+        let size = try!(file_size(path));
+        let map = try!(map_file(file, size));
+        Ok(MapFile{file: file, map: map})
+    }
+}
 pub struct File {
+    map: mmap::MapFile,
     data: *u8,
     header: *Header,
     nodetable: *NodeData,
     stringtable: *u64,
 }
 impl File {
-    #[cfg(windows)]
-    pub fn open(path: &Path) -> Option<File> {
-        use libc::funcs::extra::kernel32::{CreateFileW, CreateFileMappingW,
-                                           MapViewOfFile};
-        use libc::consts::os::extra::{GENERIC_READ, FILE_SHARE_READ,
-                                      OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS,
-                                      INVALID_HANDLE_VALUE, PAGE_READONLY,
-                                      FILE_MAP_READ};
-        use std::ptr;
+    pub fn open(path: &Path) -> Result<File, &'static str> {
         use std::mem::transmute;
+        let map = try!(mmap::open(path));
+        let data = map.data();
+        let header: *Header = unsafe{ transmute(data) };
+        if unsafe { (*header).magic } != 0x34474B50 {
+            return Err("Not a valid NX PKG4 file");
+        }
         unsafe {
-            let mut name = path.as_str().unwrap().to_utf16();
-            name.push(0);
-            let handle =
-                CreateFileW(name.as_ptr(), GENERIC_READ, FILE_SHARE_READ,
-                            ptr::mut_null(), OPEN_EXISTING,
-                            FILE_FLAG_RANDOM_ACCESS, ptr::mut_null());
-            if handle == transmute(INVALID_HANDLE_VALUE) { return None; }
-            let map =
-                CreateFileMappingW(handle, ptr::mut_null(), PAGE_READONLY, 0,
-                                   0, ptr::null());
-            if map.is_null() { return None; }
-            let data = MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0);
-            if data.is_null() { return None; }
-            let header: *Header = transmute(data);
-            if (*header).magic != 0x34474B50 { return None; }
-            let file =
-                File{data: transmute(data),
-                     header: header,
-                     nodetable:
-                         transmute(data.offset((*header).nodeoffset as int)),
-                     stringtable:
-                         transmute(data.offset((*header).stringoffset as
-                                                   int)),};
-            Some(file)
+            Ok(File{map: map, data: transmute(data), header: header,
+                    nodetable: transmute(data.offset((*header).nodeoffset as int)),
+                    stringtable: transmute(data.offset((*header).stringoffset as int))})
         }
     }
-    #[cfg(unix)]
-    pub fn open(path: &Path) -> Option<File> {
-        use libc::funcs::posix88::fcntl::open;
-        use libc::funcs::posix88::stat_::fstat;
-        use libc::funcs::posix88::mman::mmap;
-        use libc::consts::os::posix88::{O_RDONLY, PROT_READ, MAP_SHARED};
-        use libc::types::os::arch::posix01::stat;
-        use std::mem::{uninitialized, transmute};
-        use std::ptr;
-        unsafe {
-            let name = path.to_c_str();
-            let handle = open(name.unwrap(), O_RDONLY, 0);
-            if (handle == -1) { return None; }
-            let mut finfo = uninitialized::<stat>();
-            if (fstat(handle, &mut finfo) == -1) { return None; }
-            let size = finfo.st_size;
-            let data =
-                mmap(ptr::null(), size as u64, PROT_READ, MAP_SHARED, handle,
-                     0);
-            let header: *Header = transmute(data);
-            if (*header).magic != 0x34474B50 { return None; }
-            let file =
-                File{data: transmute(data),
-                     header: header,
-                     nodetable:
-                         transmute(data.offset((*header).nodeoffset as int)),
-                     stringtable:
-                         transmute(data.offset((*header).stringoffset as
-                                                   int)),};
-            Some(file)
-        }
-    }
-    fn get_header(&self) -> &Header {
+    fn header(&self) -> &Header {
         use std::mem::transmute;
         unsafe { transmute(self.header) }
     }
@@ -84,15 +144,15 @@ impl File {
     fn get_str<'a>(&'a self, index: u32) -> Option<&'a str> {
         use std::str;
         use std::slice::raw;
-        use std::ptr;
         use std::mem::transmute;
         unsafe {
             let off = *self.stringtable.offset(index as int);
             let ptr = self.data.offset(off as int);
             let size: *u16 = transmute(ptr);
             raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
-                              let bytes: &'a [u8] = transmute(buf);
-                              str::from_utf8(bytes) })
+                let bytes: &'a [u8] = transmute(buf);
+                str::from_utf8(bytes)
+            })
         }
     }
 }
@@ -123,9 +183,7 @@ impl <'a> Node<'a> {
             NodeIterator{data: data, count: self.data.count, file: self.file,}
         }
     }
-    pub fn name(&self) -> Option<&'a str> {
-        self.file.get_str(self.data.name)
-    }
+    pub fn name(&self) -> Option<&'a str> { self.file.get_str(self.data.name) }
     pub fn empty(&self) -> bool { self.data.count == 0 }
 }
 struct NodeIterator<'a> {
@@ -138,12 +196,10 @@ impl <'a> Iterator<Node<'a>> for NodeIterator<'a> {
         match self.count {
             0 => None,
             _ => {
-                unsafe {
-                    self.count -= 1;
-                    let node = Node{data: &*self.data, file: self.file,};
-                    self.data = self.data.offset(1);
-                    Some(node)
-                }
+                self.count -= 1;
+                let node = Node{data: unsafe { &*self.data }, file: self.file,};
+                self.data = unsafe { self.data.offset(1) };
+                Some(node)
             }
         }
     }
