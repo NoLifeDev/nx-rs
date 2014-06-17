@@ -1,5 +1,10 @@
+
+#![feature(macro_rules)]
+
 extern crate libc;
+extern crate rustrt;
 extern crate time;
+
 #[allow(dead_code)]
 mod nx;
 fn load() -> nx::File {
@@ -10,7 +15,8 @@ fn recurse(node: nx::Node) -> uint {
 }
 fn str_recurse(node: nx::Node) -> uint {
     node.iter().fold(1, |a, b| {
-        a + if node.get(b.name()).unwrap() == b { str_recurse(b) } else { 0 }
+        assert!(node.get(b.name()).unwrap() == b);
+        a + str_recurse(b)
     })
 }
 fn test(name: &str, count: uint, func: || -> uint) {
@@ -32,7 +38,7 @@ fn main() {
     unsafe { ::std::rt::stack::record_sp_limit(0); }
     let file = nx::File::open(&Path::new("Data.nx")).unwrap();
     let node = file.root();
-    println!("Name\t75%t\tM50%\tBest\tAnswer");
+    println!("Name\t75%t\tM50%\tBest\tChecksum");
     test("Ld", 0x1000, || load().header().nodecount as uint);
     test("Re", 0x20, || recurse(node));
     test("LR", 0x20, || recurse(load().root()));
