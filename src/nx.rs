@@ -2,13 +2,10 @@
 use native::io::file::open;
 use rustrt::rtio::{Open, Read, RtioFileStream};
 use std::fmt;
+use std::io::{IoResult, IoError, OtherIoError};
 use std::mem::transmute;
 use std::os::{MapReadable, MapFd, MemoryMap};
 use std::slice::raw;
-
-macro_rules! try(
-    ($e:expr, $f:expr) => (match $e { Ok(e) => e, Err(_) => return Err($f) })
-)
 
 pub struct File {
     map: MemoryMap,
@@ -17,21 +14,46 @@ pub struct File {
     nodetable: *const NodeData,
     stringtable: *const u64,
 }
+
 impl File {
-    pub fn open(path: &Path) -> Result<File, &'static str> {
-        let mut file = try!(open(&path.to_c_str(), Open, Read), "Failed to open file");
-        let stat = try!(file.fstat(), "Failed to get file size");
-        let map = try!(MemoryMap::new(stat.size as uint, [MapReadable, MapFd(file.fd())]),
-                       "Failed to map file");
-        let data = map.data as *const u8;
-        let header: *const Header = unsafe{transmute(data)};
-        if unsafe{(*header).magic} != 0x34474B50 {
-            return Err("Not a valid NX PKG4 file");
+    pub fn open(path: &Path) -> IoResult<File> {
+        fn make_error(desc: &'static str) -> IoError {
+            IoError {
+                kind: OtherIoError,
+                desc: desc,
+                detail: None,
+            }
         }
-        let nodetable: *const NodeData = unsafe{transmute(data.offset((*header).nodeoffset as int))};
-        let stringtable: *const u64 = unsafe{transmute(data.offset((*header).stringoffset as int))};
-        Ok(File{map: map, data: data, header: header, nodetable: nodetable,
-                stringtable: stringtable})
+        let mut file = match open(&path.to_c_str(), Open, Read) {
+            Ok(file) => file,
+            Err(_) => return Err(make_error("Failed to open file")),
+        };
+        let stat = match file.fstat() {
+            Ok(stat) => stat,
+            Err(_) => return Err(make_error("Failed to get file size")),
+        };
+        let map = match MemoryMap::new(stat.size as uint, [MapReadable, MapFd(file.fd())]) {
+            Ok(map) => map,
+            Err(_) => return Err(make_error("Failed to map file")),
+        };
+        let data = map.data as *const u8;
+        let header: *const Header = unsafe { transmute(data) };
+        if unsafe { (*header).magic } != 0x34474B50 {
+            return Err(make_error("Not a valid NX PKG4 file"));
+        }
+        let nodetable: *const NodeData = unsafe {
+            transmute(data.offset((*header).nodeoffset as int))
+        };
+        let stringtable: *const u64 = unsafe {
+            transmute(data.offset((*header).stringoffset as int))
+        };
+        Ok(File {
+            map: map,
+            data: data,
+            header: header,
+            nodetable: nodetable,
+            stringtable: stringtable
+        })
     }
     pub fn header(&self) -> &Header {
         unsafe{transmute(self.header)}
@@ -49,6 +71,7 @@ impl File {
         })}
     }
 }
+
 #[packed]
 struct Header {
     magic: u32,
@@ -61,14 +84,17 @@ struct Header {
     audiocount: u32,
     audiooffset: u64,
 }
+
 #[packed]
 struct String {
     length: u16,
 }
+
 pub struct Node<'a> {
     data: &'a NodeData,
     file: &'a File,
 }
+
 impl <'a> Node<'a> {
     pub fn iter(&self) -> Nodes<'a> {
         let data = unsafe {
@@ -80,8 +106,11 @@ impl <'a> Node<'a> {
             file: self.file
         }
     }
+
     pub fn name(&self) -> &'a str { self.file.get_str(self.data.name) }
+
     pub fn empty(&self) -> bool { self.data.count == 0 }
+
     pub fn get(&self, name: &'a str) -> Option<Node<'a>> {
         let mut data = unsafe {
             self.file.nodetable.offset(self.data.children as int)
@@ -106,22 +135,27 @@ impl <'a> Node<'a> {
         None
     }
 }
+
 impl <'a> PartialEq for Node<'a> {
     fn eq(&self, other: &Node) -> bool {
         self.data as *const NodeData == other.data as *const NodeData
     }
 }
+
 impl <'a> Eq for Node<'a> {}
+
 impl <'a> fmt::Show for Node<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.name())
     }
 }
+
 struct Nodes<'a> {
     data: *const NodeData,
     count: u16,
     file: &'a File,
 }
+
 impl <'a> Iterator<Node<'a>> for Nodes<'a> {
     fn next(&mut self) -> Option<Node<'a>> {
         match self.count {
@@ -138,6 +172,7 @@ impl <'a> Iterator<Node<'a>> for Nodes<'a> {
         }
     }
 }
+
 #[packed]
 struct NodeData {
     name: u32,
@@ -146,30 +181,36 @@ struct NodeData {
     dtype: u16,
     data: u64,
 }
+
 #[packed]
 struct NodeInteger {
     value: i64,
 }
+
 #[packed]
 struct NodeFloat {
     value: f64,
 }
+
 #[packed]
 struct NodeString {
     index: u32,
     unused: u32,
 }
+
 #[packed]
 struct NodeVector {
     x: i32,
     y: i32,
 }
+
 #[packed]
 struct NodeBitmap {
     index: u32,
     width: u16,
     height: u16,
 }
+
 #[packed]
 struct NodeAudio {
     index: u32,
