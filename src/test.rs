@@ -1,5 +1,4 @@
 
-extern crate libc;
 extern crate rustrt;
 extern crate time;
 

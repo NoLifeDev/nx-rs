@@ -2,7 +2,6 @@
 use native::io::file::open;
 use rustrt::rtio::{Open, Read, RtioFileStream};
 use std::fmt;
-use std::io::{IoResult, IoError, OtherIoError};
 use std::mem::transmute;
 use std::os::{MapReadable, MapFd, MemoryMap};
 use std::slice::raw;
@@ -16,30 +15,23 @@ pub struct File {
 }
 
 impl File {
-    pub fn open(path: &Path) -> IoResult<File> {
-        fn make_error(desc: &'static str) -> IoError {
-            IoError {
-                kind: OtherIoError,
-                desc: desc,
-                detail: None,
-            }
-        }
+    pub fn open(path: &Path) -> Result<File, &'static str> {
         let mut file = match open(&path.to_c_str(), Open, Read) {
             Ok(file) => file,
-            Err(_) => return Err(make_error("Failed to open file")),
+            Err(_) => return Err("Failed to open file"),
         };
         let stat = match file.fstat() {
             Ok(stat) => stat,
-            Err(_) => return Err(make_error("Failed to get file size")),
+            Err(_) => return Err("Failed to get file size"),
         };
         let map = match MemoryMap::new(stat.size as uint, [MapReadable, MapFd(file.fd())]) {
             Ok(map) => map,
-            Err(_) => return Err(make_error("Failed to map file")),
+            Err(_) => return Err("Failed to map file"),
         };
         let data = map.data as *const u8;
         let header: *const Header = unsafe { transmute(data) };
         if unsafe { (*header).magic } != 0x34474B50 {
-            return Err(make_error("Not a valid NX PKG4 file"));
+            return Err("Not a valid NX PKG4 file");
         }
         let nodetable: *const NodeData = unsafe {
             transmute(data.offset((*header).nodeoffset as int))
