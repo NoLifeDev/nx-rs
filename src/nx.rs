@@ -70,22 +70,36 @@ pub struct Node<'a> {
     file: &'a File,
 }
 impl <'a> Node<'a> {
-    pub fn iter(&self) -> NodeIterator<'a> {
-        let data = unsafe{self.file.nodetable.offset(self.data.children as int)};
-        NodeIterator{data: data, count: self.data.count, file: self.file}
+    pub fn iter(&self) -> Nodes<'a> {
+        let data = unsafe {
+            self.file.nodetable.offset(self.data.children as int)
+        };
+        Nodes {
+            data: data,
+            count: self.data.count,
+            file: self.file
+        }
     }
     pub fn name(&self) -> &'a str { self.file.get_str(self.data.name) }
     pub fn empty(&self) -> bool { self.data.count == 0 }
     pub fn get(&self, name: &'a str) -> Option<Node<'a>> {
-        let mut data = unsafe{self.file.nodetable.offset(self.data.children as int)};
+        let mut data = unsafe {
+            self.file.nodetable.offset(self.data.children as int)
+        };
         let mut count = self.data.count as int;
         while count > 0 {
             let half = count / 2;
-            let temp = unsafe{data.offset(half)};
-            let other = self.file.get_str(unsafe{(*temp).name});
+            let temp = unsafe { data.offset(half) };
+            let other = self.file.get_str(unsafe { (*temp).name });
             match other.cmp(&name) {
-                Less => { data = unsafe{temp.offset(1)}; count -= half + 1; },
-                Equal => return Some(Node{data: unsafe{&*temp}, file: self.file}),
+                Less => {
+                    data = unsafe { temp.offset(1)};
+                    count -= half + 1;
+                },
+                Equal => return Some(Node {
+                    data: unsafe { &*temp },
+                    file: self.file
+                }),
                 Greater => count = half,
             }
         }
@@ -93,7 +107,9 @@ impl <'a> Node<'a> {
     }
 }
 impl <'a> PartialEq for Node<'a> {
-    fn eq(&self, other: &Node) -> bool { self.data as *const _ == other.data as *const _ }
+    fn eq(&self, other: &Node) -> bool {
+        self.data as *const NodeData == other.data as *const NodeData
+    }
 }
 impl <'a> Eq for Node<'a> {}
 impl <'a> fmt::Show for Node<'a> {
@@ -101,19 +117,22 @@ impl <'a> fmt::Show for Node<'a> {
         write!(f, "{}", self.name())
     }
 }
-struct NodeIterator<'a> {
+struct Nodes<'a> {
     data: *const NodeData,
     count: u16,
     file: &'a File,
 }
-impl <'a> Iterator<Node<'a>> for NodeIterator<'a> {
+impl <'a> Iterator<Node<'a>> for Nodes<'a> {
     fn next(&mut self) -> Option<Node<'a>> {
         match self.count {
             0 => None,
             _ => {
                 self.count -= 1;
-                let node = Node{data: unsafe{&*self.data}, file: self.file};
-                self.data = unsafe{self.data.offset(1)};
+                let node = Node {
+                    data: unsafe { &*self.data},
+                    file: self.file
+                };
+                self.data = unsafe { self.data.offset(1) };
                 Some(node)
             }
         }
