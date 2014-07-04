@@ -1,11 +1,11 @@
 before_install:
   - yes | sudo add-apt-repository ppa:hansjorg/rust
+  - yes | sudo add-apt-repository ppa:cmrx64/cargo
   - sudo apt-get update
 install:
-  - sudo apt-get install rust-nightly
+  - sudo apt-get install rust-nightly cargo
 script:
-  - rustc --version
-  - rustc src/test.rs
+  - cargo build
 notifications:
   irc:
     - "irc.fyrechat.net#vana-commits"
