@@ -6,17 +6,16 @@ use std::mem::transmute;
 use std::os::{MapReadable, MapFd, MemoryMap};
 use std::slice::raw;
 
-#[macro_export]
 macro_rules! try(
     ($e:expr, $f:expr) => (match $e { Ok(e) => e, Err(_) => return Err($f) })
 )
 
 pub struct File {
     map: MemoryMap,
-    data: *u8,
-    header: *Header,
-    nodetable: *NodeData,
-    stringtable: *u64,
+    data: *const u8,
+    header: *const Header,
+    nodetable: *const NodeData,
+    stringtable: *const u64,
 }
 impl File {
     pub fn open(path: &Path) -> Result<File, &'static str> {
@@ -24,13 +23,13 @@ impl File {
         let stat = try!(file.fstat(), "Failed to get file size");
         let map = try!(MemoryMap::new(stat.size as uint, [MapReadable, MapFd(file.fd())]),
                        "Failed to map file");
-        let data = map.data as *u8;
-        let header: *Header = unsafe{transmute(data)};
+        let data = map.data as *const u8;
+        let header: *const Header = unsafe{transmute(data)};
         if unsafe{(*header).magic} != 0x34474B50 {
             return Err("Not a valid NX PKG4 file");
         }
-        let nodetable: *NodeData = unsafe{transmute(data.offset((*header).nodeoffset as int))};
-        let stringtable: *u64 = unsafe{transmute(data.offset((*header).stringoffset as int))};
+        let nodetable: *const NodeData = unsafe{transmute(data.offset((*header).nodeoffset as int))};
+        let stringtable: *const u64 = unsafe{transmute(data.offset((*header).stringoffset as int))};
         Ok(File{map: map, data: data, header: header, nodetable: nodetable,
                 stringtable: stringtable})
     }
@@ -43,7 +42,7 @@ impl File {
     fn get_str<'a>(&'a self, index: u32) -> &'a str {
         let off = unsafe{*self.stringtable.offset(index as int)};
         let ptr = unsafe{self.data.offset(off as int)};
-        let size: *u16 = unsafe{transmute(ptr)};
+        let size: *const u16 = unsafe{transmute(ptr)};
         unsafe{raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
             let bytes: &'a [u8] = transmute(buf);
             transmute(bytes)
@@ -94,7 +93,7 @@ impl <'a> Node<'a> {
     }
 }
 impl <'a> PartialEq for Node<'a> {
-    fn eq(&self, other: &Node) -> bool { self.data as *_ == other.data as *_ }
+    fn eq(&self, other: &Node) -> bool { self.data as *const _ == other.data as *const _ }
 }
 impl <'a> Eq for Node<'a> {}
 impl <'a> fmt::Show for Node<'a> {
@@ -103,7 +102,7 @@ impl <'a> fmt::Show for Node<'a> {
     }
 }
 struct NodeIterator<'a> {
-    data: *NodeData,
+    data: *const NodeData,
     count: u16,
     file: &'a File,
 }
