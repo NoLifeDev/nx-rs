@@ -44,23 +44,26 @@ impl File {
             data: data,
             header: header,
             nodetable: nodetable,
-            stringtable: stringtable
+            stringtable: stringtable,
         })
     }
     pub fn header(&self) -> &Header {
-        unsafe{transmute(self.header)}
+        unsafe { transmute(self.header) }
     }
     pub fn root<'a>(&'a self) -> Node<'a> {
-        Node{data: unsafe{&*self.nodetable}, file: self}
+        Node {
+            data: unsafe { &*self.nodetable },
+            file: self,
+        }
     }
     fn get_str<'a>(&'a self, index: u32) -> &'a str {
-        let off = unsafe{*self.stringtable.offset(index as int)};
-        let ptr = unsafe{self.data.offset(off as int)};
-        let size: *const u16 = unsafe{transmute(ptr)};
-        unsafe{raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
+        let off = unsafe { *self.stringtable.offset(index as int) };
+        let ptr = unsafe { self.data.offset(off as int) };
+        let size: *const u16 = unsafe { transmute(ptr) };
+        unsafe { raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
             let bytes: &'a [u8] = transmute(buf);
             transmute(bytes)
-        })}
+        }) }
     }
 }
 
@@ -114,7 +117,7 @@ impl <'a> Node<'a> {
             let other = self.file.get_str(unsafe { (*temp).name });
             match other.cmp(&name) {
                 Less => {
-                    data = unsafe { temp.offset(1)};
+                    data = unsafe { temp.offset(1) };
                     count -= half + 1;
                 },
                 Equal => return Some(Node {
@@ -155,7 +158,7 @@ impl <'a> Iterator<Node<'a>> for Nodes<'a> {
             _ => {
                 self.count -= 1;
                 let node = Node {
-                    data: unsafe { &*self.data},
+                    data: unsafe { &*self.data },
                     file: self.file
                 };
                 self.data = unsafe { self.data.offset(1) };

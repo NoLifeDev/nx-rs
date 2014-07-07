@@ -12,7 +12,7 @@ fn recurse(node: nx::Node) -> uint {
 }
 fn str_recurse(node: nx::Node) -> uint {
     node.iter().fold(1, |a, b| {
-        assert!(node.get(b.name()).unwrap() == b);
+        assert!(node.get(b.name()) == Some(b));
         a + str_recurse(b)
     })
 }
@@ -27,7 +27,7 @@ fn test(name: &str, count: uint, func: || -> uint) {
     vec.sort();
     let high = vec.get(vec.len() * 3 / 4);
     let slice = vec.slice(vec.len() * 1 / 4, vec.len() * 3 / 4);
-    let mid = slice.iter().fold(0, |a, b| a + *b) / slice.len() as u64;
+    let mid = slice.iter().fold(0, |a, &b| a + b) / slice.len() as u64;
     let low = vec.get(0);
     println!("{}\t{}\t{}\t{}\t{}", name, high / 1000, mid / 1000, low / 1000, answer);
 }
