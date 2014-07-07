@@ -1,9 +1,7 @@
 
-extern crate rustrt;
 extern crate time;
+extern crate nx;
 
-#[allow(dead_code)]
-mod nx;
 fn load() -> nx::File {
     nx::File::open(&Path::new("Data.nx")).unwrap()
 }

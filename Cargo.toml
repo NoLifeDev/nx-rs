@@ -4,6 +4,10 @@ name = "nolifenx"
 version = "0.1.0"
 authors = ["retep998@gmail.com"]
 
+[[lib]]
+
+name = "nx"
+
 [[bin]]
 
 name = "test"

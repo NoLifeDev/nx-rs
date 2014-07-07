@@ -1,4 +1,9 @@
 
+#![crate_type = "rlib"]
+
+extern crate rustrt;
+extern crate native;
+
 use native::io::file::open;
 use rustrt::rtio::{Open, Read, RtioFileStream};
 use std::fmt;
@@ -15,6 +20,7 @@ pub struct File {
 }
 
 impl File {
+    #[inline]
     pub fn open(path: &Path) -> Result<File, &'static str> {
         let mut file = match open(&path.to_c_str(), Open, Read) {
             Ok(file) => file,
@@ -47,15 +53,18 @@ impl File {
             stringtable: stringtable,
         })
     }
+    #[inline]
     pub fn header(&self) -> &Header {
         unsafe { transmute(self.header) }
     }
+    #[inline]
     pub fn root<'a>(&'a self) -> Node<'a> {
         Node {
             data: unsafe { &*self.nodetable },
             file: self,
         }
     }
+    #[inline]
     fn get_str<'a>(&'a self, index: u32) -> &'a str {
         let off = unsafe { *self.stringtable.offset(index as int) };
         let ptr = unsafe { self.data.offset(off as int) };
@@ -68,7 +77,7 @@ impl File {
 }
 
 #[packed]
-struct Header {
+pub struct Header {
     magic: u32,
     pub nodecount: u32,
     nodeoffset: u64,
@@ -91,6 +100,7 @@ pub struct Node<'a> {
 }
 
 impl <'a> Node<'a> {
+    #[inline]
     pub fn iter(&self) -> Nodes<'a> {
         let data = unsafe {
             self.file.nodetable.offset(self.data.children as int)
@@ -101,11 +111,11 @@ impl <'a> Node<'a> {
             file: self.file
         }
     }
-
+    #[inline]
     pub fn name(&self) -> &'a str { self.file.get_str(self.data.name) }
-
+    #[inline]
     pub fn empty(&self) -> bool { self.data.count == 0 }
-
+    #[inline]
     pub fn get(&self, name: &'a str) -> Option<Node<'a>> {
         let mut data = unsafe {
             self.file.nodetable.offset(self.data.children as int)
@@ -132,6 +142,7 @@ impl <'a> Node<'a> {
 }
 
 impl <'a> PartialEq for Node<'a> {
+    #[inline]
     fn eq(&self, other: &Node) -> bool {
         self.data as *const NodeData == other.data as *const NodeData
     }
@@ -140,6 +151,7 @@ impl <'a> PartialEq for Node<'a> {
 impl <'a> Eq for Node<'a> {}
 
 impl <'a> fmt::Show for Node<'a> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.name())
     }
@@ -152,6 +164,7 @@ struct Nodes<'a> {
 }
 
 impl <'a> Iterator<Node<'a>> for Nodes<'a> {
+    #[inline]
     fn next(&mut self) -> Option<Node<'a>> {
         match self.count {
             0 => None,
