@@ -1,8 +1,12 @@
 
 #![crate_type = "rlib"]
+#![feature(phase)]
 
 extern crate rustrt;
 extern crate native;
+#[phase(plugin, link)]
+extern crate log;
+extern crate time;
 
 use native::io::file::open;
 use rustrt::rtio::{Open, Read, RtioFileStream};
@@ -11,6 +15,9 @@ use std::mem::transmute;
 use std::os::{MapReadable, MapFd, MemoryMap};
 use std::slice::raw;
 use std::str::from_utf8;
+
+#[cfg(test)]
+mod test;
 
 pub struct File {
     map: MemoryMap,
@@ -23,6 +30,7 @@ pub struct File {
 impl File {
     #[inline]
     pub fn open(path: &Path) -> Result<File, &'static str> {
+        unsafe { ::std::rt::stack::record_sp_limit(0); }
         let mut file = match open(&path.to_c_str(), Open, Read) {
             Ok(file) => file,
             Err(_) => return Err("Failed to open file"),
@@ -112,11 +120,17 @@ impl <'a> Node<'a> {
         }
     }
     #[inline]
-    pub fn name(&self) -> Option<&'a str> { from_utf8(self.file.get_str(self.data.name)) }
+    pub fn name(&self) -> Option<&'a str> {
+        from_utf8(self.file.get_str(self.data.name))
+    }
     #[inline]
-    pub fn name_raw(&self) -> &'a [u8] { self.file.get_str(self.data.name) }
+    pub fn name_raw(&self) -> &'a [u8] {
+        self.file.get_str(self.data.name)
+    }
     #[inline]
-    pub fn empty(&self) -> bool { self.data.count == 0 }
+    pub fn empty(&self) -> bool {
+        self.data.count == 0
+    }
     #[inline]
     pub fn get(&self, name: &str) -> Option<Node<'a>> {
         self.get_raw(name.as_bytes())

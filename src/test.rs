@@ -1,14 +1,14 @@
 
-extern crate time;
-extern crate nx;
+use {File, Node};
+use time::precise_time_ns;
 
-fn load() -> nx::File {
-    nx::File::open(&Path::new("Data.nx")).unwrap()
+fn load() -> File {
+    File::open(&Path::new("Data.nx")).unwrap()
 }
-fn recurse(node: nx::Node) -> uint {
+fn recurse(node: Node) -> uint {
     node.iter().fold(1, |a, b| a + recurse(b))
 }
-fn str_recurse(node: nx::Node) -> uint {
+fn str_recurse(node: Node) -> uint {
     node.iter().fold(1, |a, b| {
         assert!(node.get_raw(b.name_raw()) == Some(b));
         a + str_recurse(b)
@@ -17,9 +17,9 @@ fn str_recurse(node: nx::Node) -> uint {
 fn test(name: &str, count: uint, func: || -> uint) {
     let mut answer = 0;
     let mut vec = Vec::from_fn(count, |_| {
-        let begin = time::precise_time_ns();
+        let begin = precise_time_ns();
         answer = func();
-        let end = time::precise_time_ns();
+        let end = precise_time_ns();
         end - begin
     });
     vec.sort();
@@ -27,13 +27,13 @@ fn test(name: &str, count: uint, func: || -> uint) {
     let slice = vec.slice(vec.len() * 1 / 4, vec.len() * 3 / 4);
     let mid = slice.iter().fold(0, |a, &b| a + b) / slice.len() as u64;
     let low = vec.get(0);
-    println!("{}\t{}\t{}\t{}\t{}", name, high / 1000, mid / 1000, low / 1000, answer);
+    info!("{}\t{}\t{}\t{}\t{}", name, high / 1000, mid / 1000, low / 1000, answer);
 }
-fn main() {
-    unsafe { ::std::rt::stack::record_sp_limit(0); }
-    let file = nx::File::open(&Path::new("Data.nx")).unwrap();
+#[test]
+fn benchmark_suite() {
+    let file = File::open(&Path::new("Data.nx")).unwrap();
     let node = file.root();
-    println!("Name\t75%t\tM50%\tBest\tChecksum");
+    info!("Name\t75%t\tM50%\tBest\tChecksum");
     test("Ld", 0x1000, || load().header().nodecount as uint);
     test("Re", 0x20, || recurse(node));
     test("LR", 0x20, || recurse(load().root()));

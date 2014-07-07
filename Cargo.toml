@@ -1,14 +1,9 @@
 [package]
 
-name = "nolifenx"
+name = "NoLifeNx"
 version = "0.1.0"
-authors = ["retep998@gmail.com"]
+authors = ["Peter Atashian <retep998@gmail.com>"]
 
 [[lib]]
 
 name = "nx"
-
-[[bin]]
-
-name = "test"
-path = "src/test.rs"
