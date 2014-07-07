@@ -10,6 +10,7 @@ use std::fmt;
 use std::mem::transmute;
 use std::os::{MapReadable, MapFd, MemoryMap};
 use std::slice::raw;
+use std::str::from_utf8;
 
 pub struct File {
     map: MemoryMap,
@@ -65,13 +66,12 @@ impl File {
         }
     }
     #[inline]
-    fn get_str<'a>(&'a self, index: u32) -> &'a str {
+    fn get_str<'a>(&'a self, index: u32) -> &'a [u8] {
         let off = unsafe { *self.stringtable.offset(index as int) };
         let ptr = unsafe { self.data.offset(off as int) };
         let size: *const u16 = unsafe { transmute(ptr) };
         unsafe { raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
-            let bytes: &'a [u8] = transmute(buf);
-            transmute(bytes)
+            transmute(buf)
         }) }
     }
 }
@@ -112,11 +112,17 @@ impl <'a> Node<'a> {
         }
     }
     #[inline]
-    pub fn name(&self) -> &'a str { self.file.get_str(self.data.name) }
+    pub fn name(&self) -> Option<&'a str> { from_utf8(self.file.get_str(self.data.name)) }
+    #[inline]
+    pub fn name_raw(&self) -> &'a [u8] { self.file.get_str(self.data.name) }
     #[inline]
     pub fn empty(&self) -> bool { self.data.count == 0 }
     #[inline]
-    pub fn get(&self, name: &'a str) -> Option<Node<'a>> {
+    pub fn get(&self, name: &str) -> Option<Node<'a>> {
+        self.get_raw(name.as_bytes())
+    }
+    #[inline]
+    pub fn get_raw(&self, name: &[u8]) -> Option<Node<'a>> {
         let mut data = unsafe {
             self.file.nodetable.offset(self.data.children as int)
         };
@@ -157,7 +163,7 @@ impl <'a> fmt::Show for Node<'a> {
     }
 }
 
-struct Nodes<'a> {
+pub struct Nodes<'a> {
     data: *const NodeData,
     count: u16,
     file: &'a File,

@@ -10,7 +10,7 @@ fn recurse(node: nx::Node) -> uint {
 }
 fn str_recurse(node: nx::Node) -> uint {
     node.iter().fold(1, |a, b| {
-        assert!(node.get(b.name()) == Some(b));
+        assert!(node.get_raw(b.name_raw()) == Some(b));
         a + str_recurse(b)
     })
 }
