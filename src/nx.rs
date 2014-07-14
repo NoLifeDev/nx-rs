@@ -45,7 +45,7 @@ impl File {
             Ok(map) => map,
             Err(_) => return Err("Failed to map file"),
         };
-        let data = map.data as *const u8;
+        let data = map.data() as *const u8;
         let header: *const Header = unsafe { transmute(data) };
         if unsafe { (*header).magic } != 0x34474B50 {
             return Err("Not a valid NX PKG4 file");
