@@ -1,6 +1,7 @@
 
 #![crate_type = "rlib"]
 #![feature(phase)]
+#![allow(dead_code)]
 
 extern crate rustrt;
 extern crate native;
@@ -12,6 +13,7 @@ use native::io::file::open;
 use rustrt::rtio::{Open, Read, RtioFileStream};
 use std::fmt;
 use std::mem::transmute;
+use std::num::FromPrimitive;
 use std::os::{MapReadable, MapFd, MemoryMap};
 use std::slice::raw;
 use std::str::from_utf8;
@@ -159,6 +161,46 @@ impl <'a> Node<'a> {
         }
         None
     }
+    #[inline]
+    pub fn dtype(&self) -> NodeType {
+        match FromPrimitive::from_u16(self.data.dtype) {
+            Some(dtype) => dtype,
+            None => Empty,
+        }
+    }
+    #[inline]
+    pub fn string(&self) -> Option<&'a str> {
+        match self.dtype() {
+            String => from_utf8(self.file.get_str(unsafe {
+                transmute::<_, NodeString>(self.data.data).index
+            })),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn integer(&self) -> Option<i64> {
+        match self.dtype() {
+            Integer => Some(unsafe { transmute::<_, NodeInteger>(self.data.data).value }),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn float(&self) -> Option<f64> {
+        match self.dtype() {
+            Float => Some(unsafe { transmute::<_, NodeFloat>(self.data.data).value }),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn vector(&self) -> Option<(i32, i32)> {
+        match self.dtype() {
+            Vector => Some(unsafe {
+                let vec = transmute::<_, NodeVector>(self.data.data);
+                (vec.x, vec.y)
+            }),
+            _ => None,
+        }
+    }
 }
 
 impl <'a> PartialEq for Node<'a> {
@@ -173,7 +215,20 @@ impl <'a> Eq for Node<'a> {}
 impl <'a> fmt::Show for Node<'a> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name())
+        try!(write!(f, "[{}", self.name().unwrap()))
+        match self.dtype() {
+            Empty => (),
+            Integer => try!(write!(f, ", {}", self.integer().unwrap())),
+            Float => try!(write!(f, ", {}", self.float().unwrap())),
+            String => try!(write!(f, ", \"{}\"", self.string().unwrap())),
+            Vector => try!(write!(f, ", {}", self.vector().unwrap())),
+            Bitmap => try!(write!(f, ", Bitmap")),
+            Audio => try!(write!(f, ", Audio")),
+        }
+        if self.data.count != 0 {
+            try!(write!(f, ", ..{}", self.data.count));
+        }
+        write!(f, "]")
     }
 }
 
@@ -208,6 +263,17 @@ struct NodeData {
     count: u16,
     dtype: u16,
     data: u64,
+}
+
+#[deriving(FromPrimitive, PartialEq, Eq)]
+pub enum NodeType {
+    Empty = 0,
+    Integer = 1,
+    Float = 2,
+    String = 3,
+    Vector = 4,
+    Bitmap = 5,
+    Audio = 6,
 }
 
 #[packed]
