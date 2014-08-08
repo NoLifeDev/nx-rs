@@ -1,7 +1,13 @@
+env:
+  global:
+    - secure: rWHskKHX3MTex7uMgJek92j6aBWGaGo80gbEZ9wA4mQnZ2RZpwASZDV0VYJRXP8TwgWSphqBQusRnNL6Sq3oittujdxkP8IyuDWtnYJ241WRIAMYKSAkFNgrQItydgvhoxNYXSIFFxoAX4jjOGBeXOljJ1DoKBmcL0oIsl5lMSQ=
 install:
   - curl http://www.rust-lang.org/rustup.sh | sudo sh -
 script:
   - cargo build
+  - cargo doc
 notifications:
   irc:
     - "irc.fyrechat.net#vana-commits"
+after_script:
+  - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
