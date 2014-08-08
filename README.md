@@ -1,7 +1,6 @@
-nx
-==
-`nx` is a Rust library used to read NX files.
-It is designed for high performance and minimal memory usage.
+nx-rs
+=====
+A high performance Rust library used to read NX files with minimal memory usage.
 
 Further reading
 ---------------
