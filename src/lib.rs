@@ -1,13 +1,8 @@
 
 #![crate_type = "rlib"]
-#![feature(phase)]
-#![allow(dead_code)]
 
 extern crate rustrt;
 extern crate native;
-#[phase(plugin, link)]
-extern crate log;
-extern crate time;
 
 use native::io::file::open;
 use rustrt::rtio::{Open, Read, RtioFileStream};
@@ -18,10 +13,8 @@ use std::os::{MapReadable, MapFd, MemoryMap};
 use std::slice::raw;
 use std::str::from_utf8;
 
-#[cfg(test)]
-mod test;
-
 pub struct File {
+    #[allow(dead_code)]
     map: MemoryMap,
     data: *const u8,
     header: *const Header,
@@ -86,6 +79,7 @@ impl File {
 }
 
 #[packed]
+#[allow(dead_code)]
 pub struct Header {
     magic: u32,
     pub nodecount: u32,
@@ -96,11 +90,6 @@ pub struct Header {
     bitmapoffset: u64,
     audiocount: u32,
     audiooffset: u64,
-}
-
-#[packed]
-struct String {
-    length: u16,
 }
 
 pub struct Node<'a> {
@@ -291,6 +280,7 @@ struct NodeFloat {
 #[packed]
 struct NodeString {
     index: u32,
+    #[allow(dead_code)]
     unused: u32,
 }
 
@@ -301,6 +291,7 @@ struct NodeVector {
 }
 
 #[packed]
+#[allow(dead_code)]
 struct NodeBitmap {
     index: u32,
     width: u16,
@@ -308,6 +299,7 @@ struct NodeBitmap {
 }
 
 #[packed]
+#[allow(dead_code)]
 struct NodeAudio {
     index: u32,
     length: u32,

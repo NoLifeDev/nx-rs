@@ -5,6 +5,7 @@ install:
   - curl http://www.rust-lang.org/rustup.sh | sudo sh -
 script:
   - cargo build
+  - cargo test
   - cargo doc
 notifications:
   irc:
