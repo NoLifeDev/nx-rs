@@ -30,7 +30,6 @@ pub struct File {
 }
 
 impl File {
-    #[inline]
     pub fn open(path: &Path) -> Result<File, &'static str> {
         unsafe { ::std::rt::stack::record_sp_limit(0); }
         let mut file = match open(&path.to_c_str(), Open, Read) {
@@ -109,7 +108,7 @@ pub struct Node<'a> {
     file: &'a File,
 }
 
-impl <'a> Node<'a> {
+impl<'a> Node<'a> {
     #[inline]
     pub fn iter(&self) -> Nodes<'a> {
         let data = unsafe {
@@ -137,7 +136,6 @@ impl <'a> Node<'a> {
     pub fn get(&self, name: &str) -> Option<Node<'a>> {
         self.get_raw(name.as_bytes())
     }
-    #[inline]
     pub fn get_raw(&self, name: &[u8]) -> Option<Node<'a>> {
         let mut data = unsafe {
             self.file.nodetable.offset(self.data.children as int)
@@ -203,16 +201,16 @@ impl <'a> Node<'a> {
     }
 }
 
-impl <'a> PartialEq for Node<'a> {
+impl<'a> PartialEq for Node<'a> {
     #[inline]
     fn eq(&self, other: &Node) -> bool {
         self.data as *const NodeData == other.data as *const NodeData
     }
 }
 
-impl <'a> Eq for Node<'a> {}
+impl<'a> Eq for Node<'a> {}
 
-impl <'a> fmt::Show for Node<'a> {
+impl<'a> fmt::Show for Node<'a> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(f, "[{}", self.name().unwrap()))
@@ -238,7 +236,11 @@ pub struct Nodes<'a> {
     file: &'a File,
 }
 
-impl <'a> Iterator<Node<'a>> for Nodes<'a> {
+impl<'a> Iterator<Node<'a>> for Nodes<'a> {
+    #[inline]
+    fn size_hint(&self) -> (uint, Option<uint>) {
+        (self.count as uint, Some(self.count as uint))
+    }
     #[inline]
     fn next(&mut self) -> Option<Node<'a>> {
         match self.count {

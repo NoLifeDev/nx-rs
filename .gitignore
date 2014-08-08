@@ -2,8 +2,10 @@
 !.gitignore
 !.travis.yml
 !Cargo.toml
-!*.cmake
-!*.md
-!*.txt
+!LICENSE.txt
+!README.md
 !*.rs
 !src/
+!src/**/
+!examples/
+!tests/
