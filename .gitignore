@@ -1,11 +1,2 @@
-*
-!.gitignore
-!.travis.yml
-!Cargo.toml
-!LICENSE.txt
-!README.md
-!*.rs
-!src/
-!src/**/
-!examples/
-!tests/
+target/
+Cargo.lock
