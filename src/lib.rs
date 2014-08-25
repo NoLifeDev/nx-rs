@@ -1,3 +1,4 @@
+// Copyright © 2014, Peter Atashian
 
 #![crate_type = "rlib"]
 
