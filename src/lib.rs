@@ -135,7 +135,7 @@ impl<'a> Node<'a> {
             let half = count / 2;
             let temp = unsafe { data.offset(half) };
             let other = self.file.get_str(unsafe { (*temp).name });
-            match other.cmp(&name) {
+            match other.cmp(name) {
                 Less => {
                     data = unsafe { temp.offset(1) };
                     count -= half + 1;
