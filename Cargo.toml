@@ -3,3 +3,8 @@
 name = "nx"
 version = "0.2.0"
 authors = ["Peter Atashian <retep998@gmail.com>"]
+description = "A high performance Rust library used to read NX files with minimal memory usage."
+repository = "https://github.com/NoLifeDev/nx-rs"
+readme = "README.md"
+keywords = ["NX"]
+license = "MIT"
