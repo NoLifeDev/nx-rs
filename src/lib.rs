@@ -1,49 +1,72 @@
 // Copyright © 2014, Peter Atashian
 
-#![crate_type = "rlib"]
-
-extern crate rustrt;
-extern crate native;
-
-use native::io::file::open;
-use rustrt::rtio::{Open, Read, RtioFileStream};
-use std::fmt;
+use std::error::FromError;
+use std::io::fs::File as FsFile;
+use std::io::IoError;
 use std::mem::transmute;
 use std::num::FromPrimitive;
-use std::os::{MapReadable, MapFd, MemoryMap};
-use std::slice::raw;
-use std::str::from_utf8;
+use std::os::{MapError, MemoryMap};
+use std::os::MapOption::{mod, MapFd, MapReadable};
+use std::result::Result as StdResult;
+use std::slice::from_raw_buf;
+
+pub trait GenericNode<'a> {
+    fn get(&self, name: &str) -> Option<Node<'a>>;
+    fn dtype(&self) -> Type;
+    fn string(&self) -> Option<&'a str>;
+    fn integer(&self) -> Option<i64>;
+    fn float(&self) -> Option<f64>;
+    fn vector(&self) -> Option<(i32, i32)>;
+}
+
+#[deriving(Show)]
+pub enum Error {
+    IoError(IoError),
+    MapError(MapError),
+    NxError(&'static str),
+}
+impl FromError<IoError> for Error {
+    fn from_error(err: IoError) -> Error {
+        Error::IoError(err)
+    }
+}
+impl FromError<MapError> for Error {
+    fn from_error(err: MapError) -> Error {
+        Error::MapError(err)
+    }
+}
+pub type Result<T> = StdResult<T, Error>;
 
 pub struct File {
     #[allow(dead_code)]
     map: MemoryMap,
     data: *const u8,
     header: *const Header,
-    nodetable: *const NodeData,
+    nodetable: *const Data,
     stringtable: *const u64,
 }
 
 impl File {
-    pub fn open(path: &Path) -> Result<File, &'static str> {
-        unsafe { ::std::rt::stack::record_sp_limit(0); }
-        let mut file = match open(&path.to_c_str(), Open, Read) {
-            Ok(file) => file,
-            Err(_) => return Err("Failed to open file"),
-        };
-        let stat = match file.fstat() {
-            Ok(stat) => stat,
-            Err(_) => return Err("Failed to get file size"),
-        };
-        let map = match MemoryMap::new(stat.size as uint, [MapReadable, MapFd(file.fd())]) {
-            Ok(map) => map,
-            Err(_) => return Err("Failed to map file"),
-        };
+    pub fn open(path: &Path) -> Result<File> {
+        let file = try!(FsFile::open(path));
+        let stat = try!(file.stat());
+        #[cfg(not(windows))]
+        fn get_fd(file: &FsFile) -> MapOption {
+            use std::os::unix::AsRawFd;
+            MapFd(file.as_raw_fd())
+        }
+        #[cfg(windows)]
+        fn get_fd(file: &FsFile) -> MapOption {
+            use std::os::windows::AsRawHandle;
+            MapFd(file.as_raw_handle())
+        }
+        let map = try!(MemoryMap::new(stat.size as uint, &[MapReadable, get_fd(&file)]));
         let data = map.data() as *const u8;
         let header: *const Header = unsafe { transmute(data) };
         if unsafe { (*header).magic } != 0x34474B50 {
-            return Err("Not a valid NX PKG4 file");
+            return Err(Error::NxError("Not a valid NX PKG4 file"));
         }
-        let nodetable: *const NodeData = unsafe {
+        let nodetable: *const Data = unsafe {
             transmute(data.offset((*header).nodeoffset as int))
         };
         let stringtable: *const u64 = unsafe {
@@ -69,18 +92,16 @@ impl File {
         }
     }
     #[inline]
-    fn get_str<'a>(&'a self, index: u32) -> &'a [u8] {
+    fn get_str<'a>(&'a self, index: u32) -> &'a str {
         let off = unsafe { *self.stringtable.offset(index as int) };
         let ptr = unsafe { self.data.offset(off as int) };
         let size: *const u16 = unsafe { transmute(ptr) };
-        unsafe { raw::buf_as_slice(ptr.offset(2), (*size) as uint, |buf| {
-            transmute(buf)
-        }) }
+        unsafe { transmute(from_raw_buf(&ptr.offset(2), (*size) as uint)) }
     }
 }
 
-#[packed]
-#[allow(dead_code)]
+#[repr(packed)]
+#[allow(dead_code, missing_copy_implementations)]
 pub struct Header {
     magic: u32,
     pub nodecount: u32,
@@ -93,12 +114,21 @@ pub struct Header {
     audiooffset: u64,
 }
 
+#[deriving(Copy)]
 pub struct Node<'a> {
-    data: &'a NodeData,
+    data: &'a Data,
     file: &'a File,
 }
 
 impl<'a> Node<'a> {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.data.count == 0
+    }
+    #[inline]
+    pub fn name(&self) -> &'a str {
+        self.file.get_str(self.data.name)
+    }
     #[inline]
     pub fn iter(&self) -> Nodes<'a> {
         let data = unsafe {
@@ -110,23 +140,11 @@ impl<'a> Node<'a> {
             file: self.file
         }
     }
+}
+
+impl<'a> GenericNode<'a> for Node<'a> {
     #[inline]
-    pub fn name(&self) -> Option<&'a str> {
-        from_utf8(self.file.get_str(self.data.name))
-    }
-    #[inline]
-    pub fn name_raw(&self) -> &'a [u8] {
-        self.file.get_str(self.data.name)
-    }
-    #[inline]
-    pub fn empty(&self) -> bool {
-        self.data.count == 0
-    }
-    #[inline]
-    pub fn get(&self, name: &str) -> Option<Node<'a>> {
-        self.get_raw(name.as_bytes())
-    }
-    pub fn get_raw(&self, name: &[u8]) -> Option<Node<'a>> {
+    fn get(&self, name: &str) -> Option<Node<'a>> {
         let mut data = unsafe {
             self.file.nodetable.offset(self.data.children as int)
         };
@@ -142,7 +160,7 @@ impl<'a> Node<'a> {
                 },
                 Equal => return Some(Node {
                     data: unsafe { &*temp },
-                    file: self.file
+                    file: self.file,
                 }),
                 Greater => count = half,
             }
@@ -150,43 +168,87 @@ impl<'a> Node<'a> {
         None
     }
     #[inline]
-    pub fn dtype(&self) -> NodeType {
+    fn dtype(&self) -> Type {
         match FromPrimitive::from_u16(self.data.dtype) {
             Some(dtype) => dtype,
-            None => Empty,
+            None => Type::Empty,
         }
     }
     #[inline]
-    pub fn string(&self) -> Option<&'a str> {
+    fn string(&self) -> Option<&'a str> {
         match self.dtype() {
-            String => from_utf8(self.file.get_str(unsafe {
-                transmute::<_, NodeString>(self.data.data).index
+            Type::String => Some(self.file.get_str(unsafe {
+                transmute::<_, String>(self.data.data).index
             })),
             _ => None,
         }
     }
     #[inline]
-    pub fn integer(&self) -> Option<i64> {
+    fn integer(&self) -> Option<i64> {
         match self.dtype() {
-            Integer => Some(unsafe { transmute::<_, NodeInteger>(self.data.data).value }),
+            Type::Integer => Some(unsafe { transmute::<_, Integer>(self.data.data).value }),
             _ => None,
         }
     }
     #[inline]
-    pub fn float(&self) -> Option<f64> {
+    fn float(&self) -> Option<f64> {
         match self.dtype() {
-            Float => Some(unsafe { transmute::<_, NodeFloat>(self.data.data).value }),
+            Type::Float => Some(unsafe { transmute::<_, Float>(self.data.data).value }),
             _ => None,
         }
     }
     #[inline]
-    pub fn vector(&self) -> Option<(i32, i32)> {
+    fn vector(&self) -> Option<(i32, i32)> {
         match self.dtype() {
-            Vector => Some(unsafe {
-                let vec = transmute::<_, NodeVector>(self.data.data);
+            Type::Vector => Some(unsafe {
+                let vec = transmute::<_, Vector>(self.data.data);
                 (vec.x, vec.y)
             }),
             _ => None,
+        }
+    }
+}
+impl<'a> GenericNode<'a> for Option<Node<'a>> {
+    #[inline]
+    fn get(&self, name: &str) -> Option<Node<'a>> {
+        match self {
+            &Some(n) => n.get(name),
+            &None => None,
+        }
+    }
+    #[inline]
+    fn dtype(&self) -> Type {
+        match self {
+            &Some(n) => n.dtype(),
+            &None => Type::Empty,
+        }
+    }
+    #[inline]
+    fn string(&self) -> Option<&'a str> {
+        match self {
+            &Some(n) => n.string(),
+            &None => None,
+        }
+    }
+    #[inline]
+    fn integer(&self) -> Option<i64> {
+        match self {
+            &Some(n) => n.integer(),
+            &None => None,
+        }
+    }
+    #[inline]
+    fn float(&self) -> Option<f64> {
+        match self {
+            &Some(n) => n.float(),
+            &None => None,
+        }
+    }
+    #[inline]
+    fn vector(&self) -> Option<(i32, i32)> {
+        match self {
+            &Some(n) => n.vector(),
+            &None => None,
         }
     }
 }
@@ -194,34 +256,14 @@ impl<'a> Node<'a> {
 impl<'a> PartialEq for Node<'a> {
     #[inline]
     fn eq(&self, other: &Node) -> bool {
-        self.data as *const NodeData == other.data as *const NodeData
+        self.data as *const Data == other.data as *const Data
     }
 }
 
 impl<'a> Eq for Node<'a> {}
 
-impl<'a> fmt::Show for Node<'a> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "[{}", self.name().unwrap()))
-        match self.dtype() {
-            Empty => (),
-            Integer => try!(write!(f, ", {}", self.integer().unwrap())),
-            Float => try!(write!(f, ", {}", self.float().unwrap())),
-            String => try!(write!(f, ", \"{}\"", self.string().unwrap())),
-            Vector => try!(write!(f, ", {}", self.vector().unwrap())),
-            Bitmap => try!(write!(f, ", Bitmap")),
-            Audio => try!(write!(f, ", Audio")),
-        }
-        if self.data.count != 0 {
-            try!(write!(f, ", ..{}", self.data.count));
-        }
-        write!(f, "]")
-    }
-}
-
 pub struct Nodes<'a> {
-    data: *const NodeData,
+    data: *const Data,
     count: u16,
     file: &'a File,
 }
@@ -248,8 +290,8 @@ impl<'a> Iterator<Node<'a>> for Nodes<'a> {
     }
 }
 
-#[packed]
-struct NodeData {
+#[repr(packed)]
+struct Data {
     name: u32,
     children: u32,
     count: u16,
@@ -257,8 +299,8 @@ struct NodeData {
     data: u64,
 }
 
-#[deriving(FromPrimitive, PartialEq, Eq)]
-pub enum NodeType {
+#[deriving(FromPrimitive, PartialEq, Eq, Copy)]
+pub enum Type {
     Empty = 0,
     Integer = 1,
     Float = 2,
@@ -268,40 +310,39 @@ pub enum NodeType {
     Audio = 6,
 }
 
-#[packed]
-struct NodeInteger {
+#[repr(packed)]
+struct Integer {
     value: i64,
 }
 
-#[packed]
-struct NodeFloat {
+#[repr(packed)]
+struct Float {
     value: f64,
 }
 
-#[packed]
-struct NodeString {
+#[repr(packed)]
+struct String {
     index: u32,
-    #[allow(dead_code)]
-    unused: u32,
+    _unused: u32,
 }
 
-#[packed]
-struct NodeVector {
+#[repr(packed)]
+struct Vector {
     x: i32,
     y: i32,
 }
 
-#[packed]
+#[repr(packed)]
 #[allow(dead_code)]
-struct NodeBitmap {
+struct Bitmap {
     index: u32,
     width: u16,
     height: u16,
 }
 
-#[packed]
+#[repr(packed)]
 #[allow(dead_code)]
-struct NodeAudio {
+struct Audio {
     index: u32,
     length: u32,
 }

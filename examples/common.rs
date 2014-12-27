@@ -1,20 +1,16 @@
 // Copyright © 2014, Peter Atashian
 
-#![feature(if_let)]
-
 extern crate nx;
 
 use std::collections::HashMap;
-use std::collections::hash_map::{Occupied, Vacant};
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 
 fn common_names<'a>(file: &'a nx::File) -> Vec<(&'a str, uint)> {
     let mut names = HashMap::new();
     fn recurse<'a>(names: &mut HashMap<&'a str, uint>, node: nx::Node<'a>) {
-        if let Some(s) = node.name() {
-            match names.entry(s) {
-                Occupied(mut x) => *x.get_mut() += 1,
-                Vacant(x) => drop(x.set(1)),
-            }
+        match names.entry(node.name()) {
+            Occupied(mut x) => *x.get_mut() += 1,
+            Vacant(x) => drop(x.set(1)),
         }
         for child in node.iter() { recurse(names, child) }
     }

@@ -1,9 +1,9 @@
 // Copyright © 2014, Peter Atashian
 
 extern crate nx;
-extern crate time;
 
-use time::precise_time_ns;
+use nx::GenericNode;
+use std::time::duration::Duration;
 
 fn benchmark_suite() {
     fn load() -> nx::File {
@@ -14,24 +14,19 @@ fn benchmark_suite() {
     }
     fn str_recurse(node: nx::Node) -> uint {
         node.iter().fold(1, |a, b| {
-            assert!(node.get_raw(b.name_raw()) == Some(b));
+            assert!(node.get(b.name()) == Some(b));
             a + str_recurse(b)
         })
     }
     fn test(name: &str, count: uint, func: || -> uint) {
         let mut answer = 0;
-        let mut vec = Vec::from_fn(count, |_| {
-            let begin = precise_time_ns();
-            answer = func();
-            let end = precise_time_ns();
-            end - begin
-        });
+        let mut vec = Vec::from_fn(count, |_| Duration::span(|| answer = func()).num_microseconds().unwrap());
         vec.sort();
         let high = vec[vec.len() * 3 / 4];
         let slice = vec.slice(vec.len() * 1 / 4, vec.len() * 3 / 4);
-        let mid = slice.iter().fold(0, |a, &b| a + b) / slice.len() as u64;
+        let mid = slice.iter().fold(0, |a, &b| a + b) / slice.len() as i64;
         let low = vec[0];
-        println!("{}\t{}\t{}\t{}\t{}", name, high / 1000, mid / 1000, low / 1000, answer);
+        println!("{}\t{}\t{}\t{}\t{}", name, high, mid, low, answer);
     }
     let file = nx::File::open(&Path::new("Data.nx")).unwrap();
     let node = file.root();
