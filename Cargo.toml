@@ -1,7 +1,7 @@
 [package]
 
 name = "nx"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Peter Atashian <retep998@gmail.com>"]
 description = "A high performance Rust library used to read NX files with minimal memory usage."
 repository = "https://github.com/NoLifeDev/nx-rs"
