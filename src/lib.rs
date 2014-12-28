@@ -1,5 +1,7 @@
 // Copyright © 2014, Peter Atashian
-
+//! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with 
+//! minimal memory usage.
+#![warn(missing_docs)]
 #![unstable]
 
 use std::error::Error as StdError;
@@ -18,10 +20,14 @@ pub use node::Type;
 
 mod node;
 
+/// An error occuring anywhere in the library.
 #[deriving(Show)]
 pub enum Error {
+    /// An internal IoError.
     IoError(IoError),
+    /// An internal MapError.
     MapError(MapError),
+    /// A library error. 
     NxError(&'static str),
 }
 impl StdError for Error {
@@ -57,8 +63,10 @@ impl FromError<MapError> for Error {
         Error::MapError(err)
     }
 }
+/// The standard result type used throughout the library.
 pub type Result<T> = StdResult<T, Error>;
 
+/// A memory-mapped NX file.
 pub struct File {
     #[allow(dead_code)]
     map: MemoryMap,
@@ -69,6 +77,7 @@ pub struct File {
 }
 
 impl File {
+    /// Opens an NX file via memory-mapping. This also checks the magic bytes in the header.
     pub fn open(path: &Path) -> Result<File> {
         let file = try!(FsFile::open(path));
         let stat = try!(file.stat());
@@ -102,14 +111,17 @@ impl File {
             stringtable: stringtable,
         })
     }
+    /// Gets the file header.
     #[inline]
     pub fn header(&self) -> &Header {
         unsafe { transmute(self.header) }
     }
+    /// Gets the root node of the file.
     #[inline]
     pub fn root<'a>(&'a self) -> Node<'a> {
         unsafe { Node::construct(&*self.nodetable, self) }
     }
+    /// Gets the string at the specified index in the string table.
     #[inline]
     fn get_str<'a>(&'a self, index: u32) -> &'a str {
         let off = unsafe { *self.stringtable.offset(index as int) };
@@ -119,10 +131,12 @@ impl File {
     }
 }
 
+/// An NX file header.
 #[repr(packed)]
 #[allow(dead_code, missing_copy_implementations)]
 pub struct Header {
     magic: u32,
+    /// The number of nodes in the NX file.
     pub nodecount: u32,
     nodeoffset: u64,
     stringcount: u32,
