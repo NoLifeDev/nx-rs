@@ -2,6 +2,7 @@
 
 #![unstable]
 
+use std::error::Error as StdError;
 use std::error::FromError;
 use std::io::fs::File as FsFile;
 use std::io::IoError;
@@ -22,6 +23,29 @@ pub enum Error {
     IoError(IoError),
     MapError(MapError),
     NxError(&'static str),
+}
+impl StdError for Error {
+    fn description(&self) -> &str {
+        match self {
+            &Error::IoError(ref e) => e.description(),
+            &Error::MapError(ref e) => e.description(),
+            &Error::NxError(s) => s,
+        }
+    }
+    fn detail(&self) -> Option<String> {
+        match self {
+            &Error::IoError(ref e) => e.detail(),
+            &Error::MapError(ref e) => e.detail(),
+            &Error::NxError(_) => None,  
+        }
+    }
+    fn cause(&self) -> Option<&StdError> {
+        match self {
+            &Error::IoError(ref e) => e.cause(),
+            &Error::MapError(ref e) => e.cause(),
+            &Error::NxError(_) => None,  
+        }
+    }
 }
 impl FromError<IoError> for Error {
     fn from_error(err: IoError) -> Error {
