@@ -3,15 +3,24 @@
 use std::mem::transmute;
 use std::num::FromPrimitive;
 
+/// The basic functionality for all nodes. 
 pub trait GenericNode<'a> {
+    /// Gets the child node of the specified name.
     fn get(&self, name: &str) -> Option<Node<'a>>;
+    /// Gets the type of this node.
     fn dtype(&self) -> Type;
+    /// Gets the string value of this node. This will be `None` if the node is not a string node.
     fn string(&self) -> Option<&'a str>;
+    /// Gets the integer value of this node. This will be `None` if the node is not an integer 
+    /// node.
     fn integer(&self) -> Option<i64>;
+    /// Gets the float value of this node. This will be `None` if the node is not a float node.
     fn float(&self) -> Option<f64>;
+    /// Gets the vector value of this node. This will be `None` if the node is not a vector node.
     fn vector(&self) -> Option<(i32, i32)>;
 }
 
+/// A node in an NX file.
 #[deriving(Copy)]
 pub struct Node<'a> {
     data: &'a Data,
@@ -19,17 +28,21 @@ pub struct Node<'a> {
 }
 
 impl<'a> Node<'a> {
+    /// Creates a Node from the data representing it and the file the data is from.
     pub unsafe fn construct(data: &'a Data, file: &'a super::File) -> Node<'a> {
         Node { data: data, file: file }
     }
+    /// Gets whether or not the node is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.data.count == 0
     }
+    /// Gets the name of this node from the string table.
     #[inline]
     pub fn name(&self) -> &'a str {
         self.file.get_str(self.data.name)
     }
+    /// Gets an iterator over this node's children.
     #[inline]
     pub fn iter(&self) -> Nodes<'a> {
         let data = unsafe { self.file.nodetable.offset(self.data.children as int) };
@@ -159,6 +172,7 @@ impl<'a> PartialEq for Node<'a> {
 
 impl<'a> Eq for Node<'a> {}
 
+/// An iterator over nodes.
 pub struct Nodes<'a> {
     data: *const Data,
     count: u16,
@@ -187,6 +201,7 @@ impl<'a> Iterator<Node<'a>> for Nodes<'a> {
     }
 }
 
+/// The data contained by an NX node.
 #[repr(packed)]
 pub struct Data {
     name: u32,
@@ -196,14 +211,22 @@ pub struct Data {
     data: u64,
 }
 
+/// The types of NX nodes.
 #[deriving(FromPrimitive, PartialEq, Eq, Copy)]
 pub enum Type {
+    /// A node containing no data.
     Empty = 0,
+    /// A node containing integer data.
     Integer = 1,
+    /// A node containing floating-point data.
     Float = 2,
+    /// A node containing string data.
     String = 3,
+    /// A node containing vector (or point) data.
     Vector = 4,
+    /// A node containing bitmap data.
     Bitmap = 5,
+    /// A node containing audio data.
     Audio = 6,
 }
 
