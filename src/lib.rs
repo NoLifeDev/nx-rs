@@ -1,5 +1,7 @@
 // Copyright © 2014, Peter Atashian
 
+#![unstable]
+
 use std::error::FromError;
 use std::io::fs::File as FsFile;
 use std::io::IoError;
