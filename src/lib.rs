@@ -2,6 +2,7 @@
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with 
 //! minimal memory usage.
 #![warn(missing_docs)]
+#![feature(associated_types)]
 #![unstable]
 
 use std::error::Error as StdError;
@@ -10,7 +11,7 @@ use std::io::fs::File as FsFile;
 use std::io::IoError;
 use std::mem::transmute;
 use std::os::{MapError, MemoryMap};
-use std::os::MapOption::{mod, MapFd, MapReadable};
+use std::os::MapOption::{self, MapFd, MapReadable};
 use std::result::Result as StdResult;
 use std::slice::from_raw_buf;
 
@@ -21,7 +22,7 @@ pub use node::Type;
 mod node;
 
 /// An error occuring anywhere in the library.
-#[deriving(Show)]
+#[derive(Show)]
 pub enum Error {
     /// An internal IoError.
     IoError(IoError),

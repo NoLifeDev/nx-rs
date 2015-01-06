@@ -1,5 +1,6 @@
 // Copyright © 2014, Peter Atashian
 
+use std::cmp::Ordering::{Equal, Greater, Less};
 use std::mem::transmute;
 use std::num::FromPrimitive;
 
@@ -21,7 +22,7 @@ pub trait GenericNode<'a> {
 }
 
 /// A node in an NX file.
-#[deriving(Copy)]
+#[derive(Copy)]
 pub struct Node<'a> {
     data: &'a Data,
     file: &'a super::File,
@@ -179,7 +180,8 @@ pub struct Nodes<'a> {
     file: &'a super::File,
 }
 
-impl<'a> Iterator<Node<'a>> for Nodes<'a> {
+impl<'a> Iterator for Nodes<'a> {
+    type Item = Node<'a>;
     #[inline]
     fn size_hint(&self) -> (uint, Option<uint>) {
         (self.count as uint, Some(self.count as uint))
@@ -212,7 +214,7 @@ pub struct Data {
 }
 
 /// The types of NX nodes.
-#[deriving(FromPrimitive, PartialEq, Eq, Copy)]
+#[derive(FromPrimitive, PartialEq, Eq, Copy)]
 pub enum Type {
     /// A node containing no data.
     Empty = 0,

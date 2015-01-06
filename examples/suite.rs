@@ -1,4 +1,5 @@
 // Copyright © 2014, Peter Atashian
+#![feature(slicing_syntax)]
 
 extern crate nx;
 
@@ -10,17 +11,19 @@ fn benchmark_suite() {
         nx::File::open(&Path::new("Data.nx")).unwrap()
     }
     fn recurse(node: nx::Node) -> uint {
-        node.iter().fold(1, |a, b| a + recurse(b))
+        node.iter().fold(1, |&:a, b| a + recurse(b))
     }
     fn str_recurse(node: nx::Node) -> uint {
-        node.iter().fold(1, |a, b| {
+        node.iter().fold(1, |&:a, b| {
             assert!(node.get(b.name()) == Some(b));
             a + str_recurse(b)
         })
     }
     fn test(name: &str, count: uint, func: || -> uint) {
         let mut answer = 0;
-        let mut vec = Vec::from_fn(count, |_| Duration::span(|| answer = func()).num_microseconds().unwrap());
+        let mut vec = (0..count).map(|_| {
+            Duration::span(|| answer = func()).num_microseconds().unwrap()
+        }).collect::<Vec<_>>();
         vec.sort();
         let high = vec[vec.len() * 3 / 4];
         let slice = vec.slice(vec.len() * 1 / 4, vec.len() * 3 / 4);
