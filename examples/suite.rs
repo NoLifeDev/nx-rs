@@ -19,7 +19,7 @@ fn benchmark_suite() {
             a + str_recurse(b)
         })
     }
-    fn test(name: &str, count: uint, func: || -> uint) {
+    fn test<F>(name: &str, count: uint, func: F) where F: Fn() -> uint {
         let mut answer = 0;
         let mut vec = (0..count).map(|_| {
             Duration::span(|| answer = func()).num_microseconds().unwrap()
