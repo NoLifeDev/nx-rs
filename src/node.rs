@@ -46,7 +46,7 @@ impl<'a> Node<'a> {
     /// Gets an iterator over this node's children.
     #[inline]
     pub fn iter(&self) -> Nodes<'a> {
-        let data = unsafe { self.file.nodetable.offset(self.data.children as int) };
+        let data = unsafe { self.file.nodetable.offset(self.data.children as isize) };
         Nodes {
             data: data,
             count: self.data.count,
@@ -58,8 +58,8 @@ impl<'a> Node<'a> {
 impl<'a> GenericNode<'a> for Node<'a> {
     #[inline]
     fn get(&self, name: &str) -> Option<Node<'a>> {
-        let mut data = unsafe { self.file.nodetable.offset(self.data.children as int) };
-        let mut count = self.data.count as int;
+        let mut data = unsafe { self.file.nodetable.offset(self.data.children as isize) };
+        let mut count = self.data.count as isize;
         while count > 0 {
             let half = count / 2;
             let temp = unsafe { data.offset(half) };
@@ -183,8 +183,8 @@ pub struct Nodes<'a> {
 impl<'a> Iterator for Nodes<'a> {
     type Item = Node<'a>;
     #[inline]
-    fn size_hint(&self) -> (uint, Option<uint>) {
-        (self.count as uint, Some(self.count as uint))
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.count as usize, Some(self.count as usize))
     }
     #[inline]
     fn next(&mut self) -> Option<Node<'a>> {

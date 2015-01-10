@@ -2,7 +2,6 @@
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with 
 //! minimal memory usage.
 #![warn(missing_docs)]
-#![feature(associated_types)]
 #![unstable]
 
 use std::error::Error as StdError;
@@ -92,17 +91,17 @@ impl File {
             use std::os::windows::AsRawHandle;
             MapFd(file.as_raw_handle())
         }
-        let map = try!(MemoryMap::new(stat.size as uint, &[MapReadable, get_fd(&file)]));
+        let map = try!(MemoryMap::new(stat.size as usize, &[MapReadable, get_fd(&file)]));
         let data = map.data() as *const u8;
         let header: *const Header = unsafe { transmute(data) };
         if unsafe { (*header).magic } != 0x34474B50 {
             return Err(Error::NxError("Not a valid NX PKG4 file"));
         }
         let nodetable: *const node::Data = unsafe {
-            transmute(data.offset((*header).nodeoffset as int))
+            transmute(data.offset((*header).nodeoffset as isize))
         };
         let stringtable: *const u64 = unsafe {
-            transmute(data.offset((*header).stringoffset as int))
+            transmute(data.offset((*header).stringoffset as isize))
         };
         Ok(File {
             map: map,
@@ -125,10 +124,10 @@ impl File {
     /// Gets the string at the specified index in the string table.
     #[inline]
     fn get_str<'a>(&'a self, index: u32) -> &'a str {
-        let off = unsafe { *self.stringtable.offset(index as int) };
-        let ptr = unsafe { self.data.offset(off as int) };
+        let off = unsafe { *self.stringtable.offset(index as isize) };
+        let ptr = unsafe { self.data.offset(off as isize) };
         let size: *const u16 = unsafe { transmute(ptr) };
-        unsafe { transmute(from_raw_buf(&ptr.offset(2), (*size) as uint)) }
+        unsafe { transmute(from_raw_buf(&ptr.offset(2), (*size) as usize)) }
     }
 }
 
