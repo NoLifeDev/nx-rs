@@ -1,7 +1,5 @@
-env:
-  global:
-    - secure: rWHskKHX3MTex7uMgJek92j6aBWGaGo80gbEZ9wA4mQnZ2RZpwASZDV0VYJRXP8TwgWSphqBQusRnNL6Sq3oittujdxkP8IyuDWtnYJ241WRIAMYKSAkFNgrQItydgvhoxNYXSIFFxoAX4jjOGBeXOljJ1DoKBmcL0oIsl5lMSQ=
 language: rust
+sudo: false
 script:
   - cargo build --verbose
   - cargo test --verbose
@@ -13,6 +11,3 @@ notifications:
     template:
       - "%{repository_slug}/%{branch} (%{commit} - %{author}): %{message}"
     skip_join: true
-after_script:
-  - cp -r target/doc doc
-  - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
