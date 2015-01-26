@@ -1,17 +1,20 @@
 // Copyright © 2014, Peter Atashian
-//! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with 
+//! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
+#![allow(unstable)]
 #![warn(missing_docs)]
 #![unstable]
 
 use std::error::Error as StdError;
 use std::error::FromError;
+use std::fmt::{Display, Formatter};
+use std::fmt::Error as FmtError;
 use std::io::fs::File as FsFile;
 use std::io::IoError;
 use std::mem::transmute;
 use std::os::{MapError, MemoryMap};
 use std::os::MapOption::{self, MapFd, MapReadable};
-use std::result::Result as StdResult;
+use std::result::Result;
 use std::slice::from_raw_buf;
 
 pub use node::Node;
@@ -21,50 +24,45 @@ pub use node::Type;
 mod node;
 
 /// An error occuring anywhere in the library.
-#[derive(Show)]
+#[derive(Debug)]
 pub enum Error {
     /// An internal IoError.
-    IoError(IoError),
+    Io(IoError),
     /// An internal MapError.
-    MapError(MapError),
-    /// A library error. 
-    NxError(&'static str),
+    Map(MapError),
+    /// A library error.
+    Nx(&'static str),
 }
 impl StdError for Error {
     fn description(&self) -> &str {
-        match self {
-            &Error::IoError(ref e) => e.description(),
-            &Error::MapError(ref e) => e.description(),
-            &Error::NxError(s) => s,
-        }
-    }
-    fn detail(&self) -> Option<String> {
-        match self {
-            &Error::IoError(ref e) => e.detail(),
-            &Error::MapError(ref e) => e.detail(),
-            &Error::NxError(_) => None,  
-        }
+        "Failed to load NX file"
     }
     fn cause(&self) -> Option<&StdError> {
         match self {
-            &Error::IoError(ref e) => e.cause(),
-            &Error::MapError(ref e) => e.cause(),
-            &Error::NxError(_) => None,  
+            &Error::Io(ref e) => Some(e),
+            &Error::Map(ref e) => Some(e),
+            &Error::Nx(_) => None,
         }
     }
 }
 impl FromError<IoError> for Error {
     fn from_error(err: IoError) -> Error {
-        Error::IoError(err)
+        Error::Io(err)
     }
 }
 impl FromError<MapError> for Error {
     fn from_error(err: MapError) -> Error {
-        Error::MapError(err)
+        Error::Map(err)
     }
 }
-/// The standard result type used throughout the library.
-pub type Result<T> = StdResult<T, Error>;
+impl Display for Error {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FmtError> {
+        match self.cause() {
+            Some(cause) => write!(fmt, "{} ({})", self.description(), cause),
+            None => write!(fmt, "{}", self.description()),
+        }
+    }
+}
 
 /// A memory-mapped NX file.
 pub struct File {
@@ -78,7 +76,7 @@ pub struct File {
 
 impl File {
     /// Opens an NX file via memory-mapping. This also checks the magic bytes in the header.
-    pub fn open(path: &Path) -> Result<File> {
+    pub fn open(path: &Path) -> Result<File, Error> {
         let file = try!(FsFile::open(path));
         let stat = try!(file.stat());
         #[cfg(not(windows))]
@@ -95,7 +93,7 @@ impl File {
         let data = map.data() as *const u8;
         let header: *const Header = unsafe { transmute(data) };
         if unsafe { (*header).magic } != 0x34474B50 {
-            return Err(Error::NxError("Not a valid NX PKG4 file"));
+            return Err(Error::Nx("Magic value is invalid"));
         }
         let nodetable: *const node::Data = unsafe {
             transmute(data.offset((*header).nodeoffset as isize))

@@ -1,5 +1,6 @@
 // Copyright © 2014, Peter Atashian
 #![feature(slicing_syntax)]
+#![allow(unstable)]
 
 extern crate nx;
 
@@ -26,7 +27,7 @@ fn benchmark_suite() {
         }).collect::<Vec<_>>();
         vec.sort();
         let high = vec[vec.len() * 3 / 4];
-        let slice = vec.slice(vec.len() * 1 / 4, vec.len() * 3 / 4);
+        let slice = &vec[vec.len() * 1 / 4..vec.len() * 3 / 4];
         let mid = slice.iter().fold(0, |a, &b| a + b) / slice.len() as i64;
         let low = vec[0];
         println!("{}\t{}\t{}\t{}\t{}", name, high, mid, low, answer);

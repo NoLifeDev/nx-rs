@@ -1,4 +1,5 @@
 // Copyright © 2014, Peter Atashian
+#![allow(unstable)]
 
 extern crate nx;
 
