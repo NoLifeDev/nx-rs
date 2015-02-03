@@ -1,5 +1,5 @@
 // Copyright © 2014, Peter Atashian
-#![allow(unstable)]
+#![feature(core, path, std_misc)]
 
 extern crate nx;
 

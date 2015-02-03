@@ -1,7 +1,7 @@
 // Copyright © 2014, Peter Atashian
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
-#![allow(unstable)]
+#![feature(core, io, os, std_misc)]
 #![warn(missing_docs)]
 #![unstable]
 
@@ -9,8 +9,8 @@ use std::error::Error as StdError;
 use std::error::FromError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
-use std::io::fs::File as FsFile;
-use std::io::IoError;
+use std::old_io::fs::File as FsFile;
+use std::old_io::IoError;
 use std::mem::transmute;
 use std::os::{MapError, MemoryMap};
 use std::os::MapOption::{self, MapFd, MapReadable};
