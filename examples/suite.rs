@@ -11,10 +11,10 @@ fn benchmark_suite() {
         nx::File::open(&Path::new("Data.nx")).unwrap()
     }
     fn recurse(node: nx::Node) -> u32 {
-        node.iter().fold(1, |&:a, b| a + recurse(b))
+        node.iter().fold(1, |a, b| a + recurse(b))
     }
     fn str_recurse(node: nx::Node) -> u32 {
-        node.iter().fold(1, |&:a, b| {
+        node.iter().fold(1, |a, b| {
             assert!(node.get(b.name()) == Some(b));
             a + str_recurse(b)
         })
