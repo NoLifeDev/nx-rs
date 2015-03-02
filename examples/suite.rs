@@ -1,5 +1,5 @@
 // Copyright © 2014, Peter Atashian
-#![feature(path, slicing_syntax, std_misc)]
+#![feature(old_path, std_misc)]
 
 extern crate nx;
 

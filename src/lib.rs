@@ -1,7 +1,7 @@
 // Copyright © 2014, Peter Atashian
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
-#![feature(core, io, os, std_misc)]
+#![feature(core, old_io, old_path, os, std_misc)]
 #![warn(missing_docs)]
 #![unstable]
 
@@ -15,7 +15,7 @@ use std::mem::transmute;
 use std::os::{MapError, MemoryMap};
 use std::os::MapOption::{self, MapFd, MapReadable};
 use std::result::Result;
-use std::slice::from_raw_buf;
+use std::slice::from_raw_parts;
 
 pub use node::Node;
 pub use node::GenericNode;
@@ -125,7 +125,7 @@ impl File {
         let off = unsafe { *self.stringtable.offset(index as isize) };
         let ptr = unsafe { self.data.offset(off as isize) };
         let size: *const u16 = unsafe { transmute(ptr) };
-        unsafe { transmute(from_raw_buf(&ptr.offset(2), (*size) as usize)) }
+        unsafe { transmute(from_raw_parts(ptr.offset(2), (*size) as usize)) }
     }
 }
 
