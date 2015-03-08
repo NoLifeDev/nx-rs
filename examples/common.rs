@@ -1,10 +1,11 @@
 // Copyright © 2014, Peter Atashian
-#![feature(old_path, std_misc)]
+#![feature(path, std_misc)]
 
 extern crate nx;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
+use std::path::Path;
 
 fn common_names<'a>(file: &'a nx::File) -> Vec<(&'a str, u32)> {
     let mut names = HashMap::new();

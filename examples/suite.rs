@@ -1,9 +1,10 @@
 // Copyright © 2014, Peter Atashian
-#![feature(old_path, std_misc)]
+#![feature(path, std_misc)]
 
 extern crate nx;
 
 use nx::GenericNode;
+use std::path::Path;
 use std::time::duration::Duration;
 
 fn benchmark_suite() {

@@ -1,7 +1,7 @@
 // Copyright © 2014, Peter Atashian
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
-#![feature(core, old_io, old_path, os, std_misc)]
+#![feature(core, fs, io, os, path, std_misc)]
 #![warn(missing_docs)]
 #![unstable]
 
@@ -9,11 +9,12 @@ use std::error::Error as StdError;
 use std::error::FromError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
-use std::old_io::fs::File as FsFile;
-use std::old_io::IoError;
+use std::fs::File as FsFile;
+use std::io::Error as IoError;
 use std::mem::transmute;
 use std::os::{MapError, MemoryMap};
 use std::os::MapOption::{self, MapFd, MapReadable};
+use std::path::Path;
 use std::result::Result;
 use std::slice::from_raw_parts;
 
@@ -78,7 +79,7 @@ impl File {
     /// Opens an NX file via memory-mapping. This also checks the magic bytes in the header.
     pub fn open(path: &Path) -> Result<File, Error> {
         let file = try!(FsFile::open(path));
-        let stat = try!(file.stat());
+        let meta = try!(file.metadata());
         #[cfg(not(windows))]
         fn get_fd(file: &FsFile) -> MapOption {
             use std::os::unix::AsRawFd;
@@ -89,7 +90,7 @@ impl File {
             use std::os::windows::AsRawHandle;
             MapFd(file.as_raw_handle())
         }
-        let map = try!(MemoryMap::new(stat.size as usize, &[MapReadable, get_fd(&file)]));
+        let map = try!(MemoryMap::new(meta.len() as usize, &[MapReadable, get_fd(&file)]));
         let data = map.data() as *const u8;
         let header: *const Header = unsafe { transmute(data) };
         if unsafe { (*header).magic } != 0x34474B50 {
