@@ -82,12 +82,12 @@ impl File {
         let meta = try!(file.metadata());
         #[cfg(not(windows))]
         fn get_fd(file: &FsFile) -> MapOption {
-            use std::os::unix::AsRawFd;
+            use std::os::unix::io::AsRawFd;
             MapFd(file.as_raw_fd())
         }
         #[cfg(windows)]
         fn get_fd(file: &FsFile) -> MapOption {
-            use std::os::windows::AsRawHandle;
+            use std::os::windows::io::AsRawHandle;
             MapFd(file.as_raw_handle())
         }
         let map = try!(MemoryMap::new(meta.len() as usize, &[MapReadable, get_fd(&file)]));
