@@ -1,7 +1,7 @@
 // Copyright © 2014, Peter Atashian
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
-#![feature(core, fs, io, os, path, std_misc)]
+#![feature(core, io_ext, os)]
 #![warn(missing_docs)]
 #![unstable]
 
