@@ -1,7 +1,7 @@
 // Copyright © 2014, Peter Atashian
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
-#![feature(core, fs, io, os, path, std_misc)]
+#![feature(core, fs, io, os, path, std_misc, io_ext)]
 #![warn(missing_docs)]
 #![unstable]
 
@@ -87,7 +87,7 @@ impl File {
         }
         #[cfg(windows)]
         fn get_fd(file: &FsFile) -> MapOption {
-            use std::os::windows::AsRawHandle;
+            use std::os::windows::io::AsRawHandle;
             MapFd(file.as_raw_handle())
         }
         let map = try!(MemoryMap::new(meta.len() as usize, &[MapReadable, get_fd(&file)]));
