@@ -149,3 +149,5 @@ impl File {
         transmute(from_raw_parts(ptr, length as usize))
     }
 }
+unsafe impl Send for File {}
+unsafe impl Sync for File {}
