@@ -1,19 +1,19 @@
 // Copyright © 2014, Peter Atashian
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
-#![feature(core, io_ext, os)]
 #![warn(missing_docs)]
-#![unstable]
+
+extern crate num;
+extern crate mmap;
 
 use std::error::Error as StdError;
-use std::error::FromError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
 use std::fs::File as FsFile;
 use std::io::Error as IoError;
 use std::mem::transmute;
-use std::os::{MapError, MemoryMap};
-use std::os::MapOption::{self, MapFd, MapReadable};
+use mmap::{MapError, MemoryMap};
+use mmap::MapOption::{self, MapFd, MapReadable};
 use std::path::Path;
 use std::result::Result;
 use std::slice::from_raw_parts;
@@ -46,13 +46,13 @@ impl StdError for Error {
         }
     }
 }
-impl FromError<IoError> for Error {
-    fn from_error(err: IoError) -> Error {
+impl From<IoError> for Error {
+    fn from(err: IoError) -> Error {
         Error::Io(err)
     }
 }
-impl FromError<MapError> for Error {
-    fn from_error(err: MapError) -> Error {
+impl From<MapError> for Error {
+    fn from(err: MapError) -> Error {
         Error::Map(err)
     }
 }

@@ -9,3 +9,7 @@ repository = "https://github.com/NoLifeDev/nx-rs"
 readme = "README.md"
 keywords = ["NX"]
 license = "MIT"
+
+[dependencies]
+mmap = "*"
+num = "*"

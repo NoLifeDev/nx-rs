@@ -1,6 +1,4 @@
 // Copyright © 2014, Peter Atashian
-#![feature(path, std_misc)]
-
 extern crate nx;
 
 use std::collections::HashMap;

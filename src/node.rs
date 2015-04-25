@@ -2,7 +2,7 @@
 
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::mem::transmute;
-use std::num::FromPrimitive;
+use num::FromPrimitive;
 
 /// The basic functionality for all nodes. 
 pub trait GenericNode<'a> {
@@ -22,7 +22,7 @@ pub trait GenericNode<'a> {
 }
 
 /// A node in an NX file.
-#[derive(Copy)]
+#[derive(Clone, Copy)]
 pub struct Node<'a> {
     data: &'a Data,
     file: &'a super::File,
@@ -214,7 +214,7 @@ pub struct Data {
 }
 
 /// The types of NX nodes.
-#[derive(FromPrimitive, PartialEq, Eq, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Type {
     /// A node containing no data.
     Empty = 0,
@@ -230,6 +230,18 @@ pub enum Type {
     Bitmap = 5,
     /// A node containing audio data.
     Audio = 6,
+}
+
+impl FromPrimitive for Type {
+    fn from_i64(n: i64) -> Option<Type> {
+        match n {
+            0...6 => Some(unsafe { ::std::mem::transmute(n as u8) }),
+            _ => None
+        }
+    }
+    fn from_u64(n: u64) -> Option<Type> {
+        FromPrimitive::from_i64(n as i64)
+    }
 }
 
 #[repr(packed)]
