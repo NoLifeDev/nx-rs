@@ -3,7 +3,6 @@
 //! minimal memory usage.
 #![warn(missing_docs)]
 
-extern crate num;
 extern crate mmap;
 
 use std::error::Error as StdError;

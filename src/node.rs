@@ -2,7 +2,6 @@
 
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::mem::transmute;
-use num::FromPrimitive;
 
 /// The basic functionality for all nodes. 
 pub trait GenericNode<'a> {
@@ -80,9 +79,15 @@ impl<'a> GenericNode<'a> for Node<'a> {
     }
     #[inline]
     fn dtype(&self) -> Type {
-        match FromPrimitive::from_u16(self.data.dtype) {
-            Some(dtype) => dtype,
-            None => Type::Empty,
+        match self.data.dtype {
+            0 => Type::Empty,
+            1 => Type::Integer,
+            2 => Type::Float,
+            3 => Type::String,
+            4 => Type::Vector,
+            5 => Type::Bitmap,
+            6 => Type::Audio,
+            _ => Type::Empty
         }
     }
     #[inline]
@@ -230,18 +235,6 @@ pub enum Type {
     Bitmap = 5,
     /// A node containing audio data.
     Audio = 6,
-}
-
-impl FromPrimitive for Type {
-    fn from_i64(n: i64) -> Option<Type> {
-        match n {
-            0...6 => Some(unsafe { ::std::mem::transmute(n as u8) }),
-            _ => None
-        }
-    }
-    fn from_u64(n: u64) -> Option<Type> {
-        FromPrimitive::from_i64(n as i64)
-    }
 }
 
 #[repr(packed)]
