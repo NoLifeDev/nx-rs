@@ -1,7 +1,14 @@
 // Copyright © 2014, Peter Atashian
+//! Stuff for working with NX nodes
 
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::mem::transmute;
+
+use audio::Audio;
+use file::File;
+use repr;
+
+pub use repr::Type;
 
 /// The basic functionality for all nodes. 
 pub trait GenericNode<'a> {
@@ -18,18 +25,21 @@ pub trait GenericNode<'a> {
     fn float(&self) -> Option<f64>;
     /// Gets the vector value of this node. This will be `None` if the node is not a vector node.
     fn vector(&self) -> Option<(i32, i32)>;
+    /// Gets the audio value of thise node. This will be `None` if the node is not an audio node.
+    fn audio(&self) -> Option<Audio<'a>>;
 }
 
 /// A node in an NX file.
 #[derive(Clone, Copy)]
 pub struct Node<'a> {
-    data: &'a Data,
+    data: &'a repr::Node,
     file: &'a super::File,
 }
 
 impl<'a> Node<'a> {
     /// Creates a Node from the data representing it and the file the data is from.
-    pub unsafe fn construct(data: &'a Data, file: &'a super::File) -> Node<'a> {
+    #[inline]
+    pub unsafe fn construct(data: &'a repr::Node, file: &'a super::File) -> Node<'a> {
         Node { data: data, file: file }
     }
     /// Gets whether or not the node is empty.
@@ -40,12 +50,12 @@ impl<'a> Node<'a> {
     /// Gets the name of this node from the string table.
     #[inline]
     pub fn name(&self) -> &'a str {
-        self.file.get_str(self.data.name)
+        unsafe { self.file.get_str(self.data.name) }
     }
     /// Gets an iterator over this node's children.
     #[inline]
     pub fn iter(&self) -> Nodes<'a> {
-        let data = unsafe { self.file.nodetable.offset(self.data.children as isize) };
+        let data = unsafe { self.file.get_node(self.data.children) };
         Nodes {
             data: data,
             count: self.data.count,
@@ -57,12 +67,12 @@ impl<'a> Node<'a> {
 impl<'a> GenericNode<'a> for Node<'a> {
     #[inline]
     fn get(&self, name: &str) -> Option<Node<'a>> {
-        let mut data = unsafe { self.file.nodetable.offset(self.data.children as isize) };
+        let mut data = unsafe { self.file.get_node(self.data.children) as *const repr::Node };
         let mut count = self.data.count as isize;
         while count > 0 {
             let half = count / 2;
             let temp = unsafe { data.offset(half) };
-            let other = self.file.get_str(unsafe { (*temp).name });
+            let other = unsafe { self.file.get_str((*temp).name) };
             match other.cmp(name) {
                 Less => {
                     data = unsafe { temp.offset(1) };
@@ -93,23 +103,23 @@ impl<'a> GenericNode<'a> for Node<'a> {
     #[inline]
     fn string(&self) -> Option<&'a str> {
         match self.dtype() {
-            Type::String => Some(self.file.get_str(unsafe {
-                transmute::<_, String>(self.data.data).index
-            })),
+            Type::String => Some(unsafe {
+                self.file.get_str(transmute::<_, repr::String>(self.data.data).index)
+            }),
             _ => None,
         }
     }
     #[inline]
     fn integer(&self) -> Option<i64> {
         match self.dtype() {
-            Type::Integer => Some(unsafe { transmute::<_, Integer>(self.data.data).value }),
+            Type::Integer => Some(unsafe { transmute::<_, repr::Integer>(self.data.data).value }),
             _ => None,
         }
     }
     #[inline]
     fn float(&self) -> Option<f64> {
         match self.dtype() {
-            Type::Float => Some(unsafe { transmute::<_, Float>(self.data.data).value }),
+            Type::Float => Some(unsafe { transmute::<_, repr::Float>(self.data.data).value }),
             _ => None,
         }
     }
@@ -117,8 +127,18 @@ impl<'a> GenericNode<'a> for Node<'a> {
     fn vector(&self) -> Option<(i32, i32)> {
         match self.dtype() {
             Type::Vector => Some(unsafe {
-                let vec = transmute::<_, Vector>(self.data.data);
+                let vec = transmute::<_, repr::Vector>(self.data.data);
                 (vec.x, vec.y)
+            }),
+            _ => None,
+        }
+    }
+    #[inline]
+    fn audio(&self) -> Option<Audio<'a>> {
+        match self.dtype() {
+            Type::Audio => Some(unsafe {
+                let audio = transmute::<_, repr::Audio>(self.data.data);
+                Audio::construct(self.file.get_audio(audio.index, audio.length))
             }),
             _ => None,
         }
@@ -167,12 +187,19 @@ impl<'a> GenericNode<'a> for Option<Node<'a>> {
             &None => None,
         }
     }
+    #[inline]
+    fn audio(&self) -> Option<Audio<'a>> {
+        match self {
+            &Some(n) => n.audio(),
+            &None => None,
+        }
+    }
 }
 
 impl<'a> PartialEq for Node<'a> {
     #[inline]
     fn eq(&self, other: &Node) -> bool {
-        self.data as *const Data == other.data as *const Data
+        self.data as *const repr::Node == other.data as *const repr::Node
     }
 }
 
@@ -180,7 +207,7 @@ impl<'a> Eq for Node<'a> {}
 
 /// An iterator over nodes.
 pub struct Nodes<'a> {
-    data: *const Data,
+    data: *const repr::Node,
     count: u16,
     file: &'a super::File,
 }
@@ -208,68 +235,3 @@ impl<'a> Iterator for Nodes<'a> {
     }
 }
 
-/// The data contained by an NX node.
-#[repr(packed)]
-pub struct Data {
-    name: u32,
-    children: u32,
-    count: u16,
-    dtype: u16,
-    data: u64,
-}
-
-/// The types of NX nodes.
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub enum Type {
-    /// A node containing no data.
-    Empty = 0,
-    /// A node containing integer data.
-    Integer = 1,
-    /// A node containing floating-point data.
-    Float = 2,
-    /// A node containing string data.
-    String = 3,
-    /// A node containing vector (or point) data.
-    Vector = 4,
-    /// A node containing bitmap data.
-    Bitmap = 5,
-    /// A node containing audio data.
-    Audio = 6,
-}
-
-#[repr(packed)]
-struct Integer {
-    value: i64,
-}
-
-#[repr(packed)]
-struct Float {
-    value: f64,
-}
-
-#[repr(packed)]
-struct String {
-    index: u32,
-    _unused: u32,
-}
-
-#[repr(packed)]
-struct Vector {
-    x: i32,
-    y: i32,
-}
-
-#[repr(packed)]
-#[allow(dead_code)]
-struct Bitmap {
-    index: u32,
-    width: u16,
-    height: u16,
-}
-
-#[repr(packed)]
-#[allow(dead_code)]
-struct Audio {
-    index: u32,
-    length: u32,
-}
