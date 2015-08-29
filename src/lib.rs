@@ -3,7 +3,7 @@
 //! minimal memory usage.
 #![warn(missing_docs)]
 
-extern crate mmap;
+extern crate memmap;
 
 pub use file::{Error, File};
 pub use node::{GenericNode, Node, Type};

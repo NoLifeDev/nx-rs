@@ -1,12 +1,11 @@
 // Copyright © 2014, Peter Atashian
 //! Stuff for working with NX files
 
-use mmap::{MapError, MemoryMap};
-use mmap::MapOption::{self, MapFd, MapReadable};
+use memmap::{Mmap};
+use memmap::Protection::{Read};
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
-use std::fs::File as FsFile;
 use std::io::Error as IoError;
 use std::mem::{size_of, transmute};
 use std::path::{Path};
@@ -24,8 +23,6 @@ pub use node::{Type};
 pub enum Error {
     /// An internal IoError.
     Io(IoError),
-    /// An internal MapError.
-    Map(MapError),
     /// Magic value in header was incorrect.
     InvalidMagic,
     /// File was too short.
@@ -35,7 +32,6 @@ impl StdError for Error {
     fn description(&self) -> &str {
         match self {
             &Error::Io(ref e) => e.description(),
-            &Error::Map(ref e) => e.description(),
             &Error::InvalidMagic => "Header magic value was invalid",
             &Error::TooShort => "File was too short for header",
         }
@@ -43,7 +39,6 @@ impl StdError for Error {
     fn cause(&self) -> Option<&StdError> {
         match self {
             &Error::Io(ref e) => Some(e),
-            &Error::Map(ref e) => Some(e),
             _ => None,
         }
     }
@@ -61,15 +56,11 @@ impl From<IoError> for Error {
         Error::Io(err)
     }
 }
-impl From<MapError> for Error {
-    fn from(err: MapError) -> Error {
-        Error::Map(err)
-    }
-}
 
 /// A memory-mapped NX file.
 pub struct File {
-    _map: MemoryMap,
+    #[allow(dead_code)]
+    map: Mmap,
     data: *const u8,
     header: *const Header,
     nodetable: *const repr::Node,
@@ -80,23 +71,11 @@ pub struct File {
 impl File {
     /// Opens an NX file via memory-mapping. This also checks the magic bytes in the header.
     pub fn open(path: &Path) -> Result<File, Error> {
-        let file = try!(FsFile::open(path));
-        let meta = try!(file.metadata());
-        #[cfg(not(windows))]
-        fn get_fd(file: &FsFile) -> MapOption {
-            use std::os::unix::io::AsRawFd;
-            MapFd(file.as_raw_fd())
-        }
-        #[cfg(windows)]
-        fn get_fd(file: &FsFile) -> MapOption {
-            use std::os::windows::io::AsRawHandle;
-            MapFd(file.as_raw_handle() as *mut _)
-        }
-        let map = try!(MemoryMap::new(meta.len() as usize, &[MapReadable, get_fd(&file)]));
+        let map = try!(Mmap::open_path(path, Read));
         if map.len() < size_of::<Header>() {
             return Err(Error::TooShort)
         }
-        let data = map.data() as *const u8;
+        let data = map.ptr();
         let header = data as *const Header;
         if unsafe { (*header).magic } != 0x34474B50 {
             return Err(Error::InvalidMagic)
@@ -105,7 +84,7 @@ impl File {
         let stringtable = unsafe { data.offset((*header).stringoffset as isize) as *const u64 };
         let audiotable = unsafe { data.offset((*header).audiooffset as isize) as *const u64 };
         Ok(File {
-            _map: map,
+            map: map,
             data: data,
             header: header,
             nodetable: nodetable,
