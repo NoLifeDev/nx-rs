@@ -1,4 +1,4 @@
-// Copyright © 2014, Peter Atashian
+// Copyright © 2015, Peter Atashian
 //! Stuff for working with NX files
 
 use memmap::{Mmap};
@@ -7,10 +7,11 @@ use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
 use std::io::Error as IoError;
-use std::mem::{size_of, transmute};
+use std::mem::{size_of};
 use std::path::{Path};
 use std::result::{Result};
 use std::slice::{from_raw_parts};
+use std::str::{from_utf8_unchecked};
 
 use repr::{self, Header};
 
@@ -113,7 +114,7 @@ impl File {
         let off = *self.stringtable.offset(index as isize);
         let ptr = self.data.offset(off as isize);
         let size = ptr as *const u16;
-        transmute(from_raw_parts(ptr.offset(2), (*size) as usize))
+        from_utf8_unchecked(from_raw_parts(ptr.offset(2), (*size) as usize))
     }
     /// Gets the node data at the specified index in the node table.
     #[inline]
@@ -125,7 +126,7 @@ impl File {
     pub unsafe fn get_audio(&self, index: u32, length: u32) -> &[u8] {
         let off = *self.audiotable.offset(index as isize);
         let ptr = self.data.offset(off as isize);
-        transmute(from_raw_parts(ptr, length as usize))
+        from_raw_parts(ptr, length as usize)
     }
 }
 unsafe impl Send for File {}

@@ -1,4 +1,4 @@
-// Copyright © 2014, Peter Atashian
+// Copyright © 2015, Peter Atashian
 extern crate nx;
 
 use std::collections::HashMap;

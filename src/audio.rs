@@ -1,4 +1,4 @@
-// Copyright © 2014, Peter Atashian
+// Copyright © 2015, Peter Atashian
 //! Stuff for working with NX nodes
 
 /// Some audio, possibly a sound effect or music

@@ -1,4 +1,4 @@
-// Copyright © 2014, Peter Atashian
+// Copyright © 2015, Peter Atashian
 //! Stuff for working with NX nodes
 
 use std::cmp::Ordering::{Equal, Greater, Less};
