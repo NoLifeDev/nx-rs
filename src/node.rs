@@ -2,10 +2,11 @@
 //! Stuff for working with NX nodes
 
 use std::cmp::Ordering::{Equal, Greater, Less};
-use std::mem::transmute;
+use std::mem::{transmute};
 
-use audio::Audio;
-use file::File;
+use audio::{Audio};
+use bitmap::{Bitmap};
+use file::{File};
 use repr;
 
 pub use repr::Type;
@@ -27,6 +28,8 @@ pub trait GenericNode<'a> {
     fn vector(&self) -> Option<(i32, i32)>;
     /// Gets the audio value of thise node. This will be `None` if the node is not an audio node.
     fn audio(&self) -> Option<Audio<'a>>;
+    /// Gets the bitmap value of thise node. This will be `None` if the node is not a bitmap node.
+    fn bitmap(&self) -> Option<Bitmap<'a>>;
 }
 
 /// A node in an NX file.
@@ -143,6 +146,16 @@ impl<'a> GenericNode<'a> for Node<'a> {
             _ => None,
         }
     }
+    #[inline]
+    fn bitmap(&self) -> Option<Bitmap<'a>> {
+        match self.dtype() {
+            Type::Bitmap => Some(unsafe {
+                let bitmap = transmute::<_, repr::Bitmap>(self.data.data);
+                Bitmap::construct(self.file.get_bitmap(bitmap.index), bitmap.width, bitmap.height)
+            }),
+            _ => None,
+        }
+    }
 }
 impl<'a> GenericNode<'a> for Option<Node<'a>> {
     #[inline]
@@ -191,6 +204,13 @@ impl<'a> GenericNode<'a> for Option<Node<'a>> {
     fn audio(&self) -> Option<Audio<'a>> {
         match self {
             &Some(n) => n.audio(),
+            &None => None,
+        }
+    }
+    #[inline]
+    fn bitmap(&self) -> Option<Bitmap<'a>> {
+        match self {
+            &Some(n) => n.bitmap(),
             &None => None,
         }
     }

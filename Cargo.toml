@@ -1,5 +1,4 @@
 [package]
-
 name = "nx"
 version = "0.2.4"
 authors = ["Peter Atashian <retep998@gmail.com>"]
@@ -9,6 +8,13 @@ repository = "https://github.com/NoLifeDev/nx-rs"
 readme = "README.md"
 keywords = ["NX"]
 license = "MIT"
+build = "build.rs"
 
 [dependencies]
-memmap = "*"
+memmap = "0.1"
+
+[build-dependencies]
+gcc = "0.3"
+
+[dev-dependencies]
+image = { version = "0.3", features = ["png"], default-features = false }

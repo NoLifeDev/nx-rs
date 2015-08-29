@@ -9,7 +9,9 @@ pub use file::{Error, File};
 pub use node::{GenericNode, Node, Type};
 
 pub mod audio;
+pub mod bitmap;
 pub mod file;
 pub mod node;
 mod repr;
+mod lz4;
 

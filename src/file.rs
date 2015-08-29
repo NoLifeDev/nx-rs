@@ -67,6 +67,7 @@ pub struct File {
     nodetable: *const repr::Node,
     stringtable: *const u64,
     audiotable: *const u64,
+    bitmaptable: *const u64,
 }
 
 impl File {
@@ -84,6 +85,7 @@ impl File {
         let nodetable = unsafe { data.offset((*header).nodeoffset as isize) as *const repr::Node };
         let stringtable = unsafe { data.offset((*header).stringoffset as isize) as *const u64 };
         let audiotable = unsafe { data.offset((*header).audiooffset as isize) as *const u64 };
+        let bitmaptable = unsafe { data.offset((*header).bitmapoffset as isize) as *const u64 };
         Ok(File {
             map: map,
             data: data,
@@ -91,6 +93,7 @@ impl File {
             nodetable: nodetable,
             stringtable: stringtable,
             audiotable: audiotable,
+            bitmaptable: bitmaptable,
         })
     }
     /// Gets the file header.
@@ -127,6 +130,14 @@ impl File {
         let off = *self.audiotable.offset(index as isize);
         let ptr = self.data.offset(off as isize);
         from_raw_parts(ptr, length as usize)
+    }
+    /// Gets the bitmap data at the specified index in the node table.
+    #[inline]
+    pub unsafe fn get_bitmap(&self, index: u32) -> &[u8] {
+        let off = *self.bitmaptable.offset(index as isize);
+        let ptr = self.data.offset(off as isize);
+        let len = *(ptr as *const u32);
+        from_raw_parts(ptr.offset(4), len as usize)
     }
 }
 unsafe impl Send for File {}
