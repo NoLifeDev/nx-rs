@@ -27,7 +27,7 @@ pub struct Node {
 
 /// The types of NX nodes.
 #[repr(u16)]
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Type {
     /// A node containing no data.
     Empty = 0,
