@@ -11,10 +11,10 @@ license = "MIT"
 build = "build.rs"
 
 [dependencies]
-memmap = "0.1"
+memmap = "0.2"
 
 [build-dependencies]
 gcc = "0.3"
 
 [dev-dependencies]
-image = { version = "0.3", features = ["png"], default-features = false }
+image = { version = "0.5", features = ["png_codec"], default-features = false }
