@@ -1,14 +1,16 @@
 [package]
 name = "nx"
-version = "0.2.4"
+version = "0.3.0"
 authors = ["Peter Atashian <retep998@gmail.com>"]
 description = "A high performance Rust library used to read NX files with minimal memory usage."
-documentation = "http://nolifedev.github.io/nx-rs/nx/"
+documentation = "https://docs.rs/nx/"
 repository = "https://github.com/NoLifeDev/nx-rs"
 readme = "README.md"
-keywords = ["NX"]
+keywords = ["nx"]
+categories = ["parser-implementations"]
 license = "MIT"
 build = "build.rs"
+include = ["/src/**", "build.rs", "Cargo.toml", "LICENSE.md", "README.md"]
 
 [dependencies]
 memmap = "0.6"
