@@ -36,13 +36,13 @@ pub trait GenericNode<'a> {
 #[derive(Clone, Copy)]
 pub struct Node<'a> {
     data: &'a repr::Node,
-    file: &'a super::File,
+    file: &'a File,
 }
 
 impl<'a> Node<'a> {
     /// Creates a Node from the data representing it and the file the data is from.
     #[inline]
-    pub unsafe fn construct(data: &'a repr::Node, file: &'a super::File) -> Node<'a> {
+    pub unsafe fn construct(data: &'a repr::Node, file: &'a File) -> Node<'a> {
         Node { data: data, file: file }
     }
     /// Gets whether or not the node is empty.
@@ -229,7 +229,7 @@ impl<'a> Eq for Node<'a> {}
 pub struct Nodes<'a> {
     data: *const repr::Node,
     count: u16,
-    file: &'a super::File,
+    file: &'a File,
 }
 
 impl<'a> Iterator for Nodes<'a> {

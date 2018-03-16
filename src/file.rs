@@ -1,17 +1,17 @@
 // Copyright © 2015, Peter Atashian
 //! Stuff for working with NX files
 
-use memmap::{Mmap};
-use memmap::Protection::{Read};
+use memmap::Mmap;
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
+use std::fs::File as FsFile;
 use std::io::Error as IoError;
-use std::mem::{size_of};
-use std::path::{Path};
-use std::result::{Result};
-use std::slice::{from_raw_parts};
-use std::str::{from_utf8_unchecked};
+use std::mem::size_of;
+use std::path::Path;
+use std::result::Result;
+use std::slice::from_raw_parts;
+use std::str::from_utf8_unchecked;
 
 use repr::{self, Header};
 
@@ -72,20 +72,24 @@ pub struct File {
 
 impl File {
     /// Opens an NX file via memory-mapping. This also checks the magic bytes in the header.
-    pub fn open(path: &Path) -> Result<File, Error> {
-        let map = try!(Mmap::open_path(path, Read));
+    ///
+    /// This is unsafe because it assumes the NX file is correct and UB may occur if
+    /// there are mistakes.
+    pub unsafe fn open(path: &Path) -> Result<File, Error> {
+        let file = try!(FsFile::open(path));
+        let map = try!(Mmap::map(&file));
         if map.len() < size_of::<Header>() {
             return Err(Error::TooShort)
         }
-        let data = map.ptr();
+        let data = map.as_ptr();
         let header = data as *const Header;
-        if unsafe { (*header).magic } != 0x34474B50 {
+        if (*header).magic != 0x34474B50 {
             return Err(Error::InvalidMagic)
         }
-        let nodetable = unsafe { data.offset((*header).nodeoffset as isize) as *const repr::Node };
-        let stringtable = unsafe { data.offset((*header).stringoffset as isize) as *const u64 };
-        let audiotable = unsafe { data.offset((*header).audiooffset as isize) as *const u64 };
-        let bitmaptable = unsafe { data.offset((*header).bitmapoffset as isize) as *const u64 };
+        let nodetable = data.offset((*header).nodeoffset as isize) as *const repr::Node;
+        let stringtable = data.offset((*header).stringoffset as isize) as *const u64;
+        let audiotable = data.offset((*header).audiooffset as isize) as *const u64;
+        let bitmaptable = data.offset((*header).bitmapoffset as isize) as *const u64;
         Ok(File {
             map: map,
             data: data,
