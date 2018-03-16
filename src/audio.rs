@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 //! Audio in NX files
 
 /// Some audio, possibly a sound effect or music

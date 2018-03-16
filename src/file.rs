@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 //! Stuff for working with NX files
 
 use memmap::Mmap;

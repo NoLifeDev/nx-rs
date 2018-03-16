@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 use std::os::raw::{c_int};
 extern "C" {
     fn LZ4_decompress_safe(

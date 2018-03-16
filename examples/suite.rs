@@ -1,15 +1,14 @@
-// Copyright © 2015, Peter Atashian
-#![feature(duration_span)]
+// Copyright © 2015-2018, Peter Atashian
 
 extern crate nx;
 
 use nx::GenericNode;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn benchmark_suite() {
     fn load() -> nx::File {
-        nx::File::open(&Path::new("Data.nx")).unwrap()
+        unsafe { nx::File::open(&Path::new("Data.nx")) }.unwrap()
     }
     fn recurse(node: nx::Node) -> u32 {
         node.iter().fold(1, |a, b| a + recurse(b))
@@ -23,7 +22,9 @@ fn benchmark_suite() {
     fn test<F>(name: &str, count: u32, func: F) where F: Fn() -> u32 {
         let mut answer = 0;
         let mut vec = (0..count).map(|_| {
-            Duration::span(|| answer = func())
+            let now = Instant::now();
+            answer = func();
+            now.elapsed()
         }).collect::<Vec<_>>();
         vec.sort();
         let high = vec[vec.len() * 3 / 4];
@@ -35,7 +36,7 @@ fn benchmark_suite() {
         let low = low.as_secs() as u32 * 1_000_000 + low.subsec_nanos() / 1_000;
         println!("{}\t{}\t{}\t{}\t{}", name, high, mid, low, answer);
     }
-    let file = nx::File::open(&Path::new("Data.nx")).unwrap();
+    let file = unsafe { nx::File::open(&Path::new("Data.nx")) }.unwrap();
     let node = file.root();
     println!("Name\t75%t\tM50%\tBest\tChecksum");
     test("Ld", 0x1000, || load().node_count() as u32);

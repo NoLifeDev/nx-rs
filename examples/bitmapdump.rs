@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 extern crate nx;
 extern crate image;
 
@@ -27,6 +27,6 @@ fn recurse<'a>(node: nx::Node<'a>, name: &str) {
 
 fn main() {
     let _ = create_dir("bitmap");
-    let file = nx::File::open(&Path::new("Data.nx")).unwrap();
+    let file = unsafe { nx::File::open(&Path::new("Data.nx")).unwrap() };
     recurse(file.root(), "Data");
 }

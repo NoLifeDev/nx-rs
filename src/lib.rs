@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 //! A high performance Rust library used to read [NX files](http://nxformat.github.io/) with
 //! minimal memory usage.
 #![warn(missing_docs)]

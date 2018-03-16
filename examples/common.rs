@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 extern crate nx;
 
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ fn common_names<'a>(file: &'a nx::File) -> Vec<(&'a str, u32)> {
 }
 
 fn main() {
-    let file = nx::File::open(&Path::new("data.nx")).unwrap();
+    let file = unsafe { nx::File::open(&Path::new(r"Data.nx")).unwrap() };
     let results = common_names(&file);
     for &(name, count) in results.iter() {
         println!("{}: {}", count, name);

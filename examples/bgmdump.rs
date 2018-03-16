@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 extern crate nx;
 
 use nx::GenericNode;
@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::Path;
 
 fn main() {
-    let file = nx::File::open(&Path::new("Sound.nx")).unwrap();
+    let file = unsafe { nx::File::open(&Path::new("Sound.nx")).unwrap() };
     for node in file.root().iter() {
         let group = node.name();
         if &group[..3] != "Bgm" { continue }

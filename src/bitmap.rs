@@ -1,4 +1,4 @@
-// Copyright © 2015, Peter Atashian
+// Copyright © 2015-2018, Peter Atashian
 //! Bitmaps in NX files
 use lz4::{decompress};
 
